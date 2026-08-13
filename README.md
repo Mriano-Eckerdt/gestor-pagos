@@ -1,1 +1,1 @@
-# -gestor-pagos
+# gestor-pagos
