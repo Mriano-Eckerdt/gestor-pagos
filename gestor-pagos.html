@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Gestor de Pagos</title>
+<style>
+:root {
+  --bg: #f8fafc; --bg-card: #ffffff; --bg-dark: #f1f5f9;
+  --text: #0f172a; --text-secondary: #475569; --text-tertiary: #94a3b8;
+  --border: #e2e8f0; --border-light: #f1f5f9;
+  --accent: #2563eb; --accent-light: #eff6ff;
+  --danger: #dc2626; --danger-light: #fef2f2;
+  --success: #16a34a; --success-light: #f0fdf4;
+  --warning: #f59e0b; --warning-light: #fffbeb;
+  --radius: 14px; --radius-sm: 10px;
+  --shadow: 0 2px 12px rgba(15,23,42,0.06);
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f172a; --bg-card: #1e293b; --bg-dark: #334155;
+    --text: #f1f5f9; --text-secondary: #cbd5e1; --text-tertiary: #94a3b8;
+    --border: #334155; --border-light: #1e293b;
+    --accent: #60a5fa; --accent-light: rgba(96,165,250,0.15);
+    --danger: #f87171; --danger-light: rgba(248,113,113,0.15);
+    --success: #4ade80; --success-light: rgba(74,222,128,0.15);
+    --warning: #facc15; --warning-light: rgba(250,204,21,0.15);
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font); background: var(--bg); color: var(--text);
+  line-height: 1.5; -webkit-tap-highlight-color: transparent; padding-bottom: 80px;
+}
+.container { max-width: 720px; margin: 0 auto; padding: 16px; }
+header {
+  text-align: center; padding: 20px 0 12px; border-bottom: 2px solid var(--border);
+  margin-bottom: 16px;
+}
+header h1 { font-size: 24px; font-weight: 900; letter-spacing: -0.5px; }
+header p { font-size: 13px; color: var(--text-secondary); margin-top: 4px; font-weight: 500; }
+
+.card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 18px; margin-bottom: 14px; box-shadow: var(--shadow);
+}
+.card-title {
+  font-size: 16px; font-weight: 800; margin-bottom: 14px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.card-subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; font-weight: 500; }
+
+.input, .select, .textarea {
+  width: 100%; padding: 12px 14px; border: 2px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 15px; background: var(--bg);
+  color: var(--text); margin-bottom: 12px; font-family: var(--font);
+  -webkit-appearance: none; transition: border-color 0.2s;
+}
+.input:focus, .select:focus, .textarea:focus {
+  outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light);
+}
+.textarea { min-height: 70px; resize: vertical; }
+
+.btn {
+  padding: 10px 18px; border-radius: var(--radius-sm); font-size: 14px;
+  font-weight: 700; cursor: pointer; border: none; transition: all 0.2s;
+  font-family: var(--font); display: inline-flex; align-items: center; gap: 6px;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { background: #1d4ed8; }
+.btn-secondary { background: transparent; color: var(--text); border: 2px solid var(--border); }
+.btn-secondary:hover { background: var(--border-light); }
+.btn-danger { background: var(--danger-light); color: var(--danger); border: 2px solid var(--danger); }
+.btn-success { background: var(--success); color: white; }
+.btn-success:hover { background: #15803d; }
+.btn-warning { background: var(--warning-light); color: #92400e; border: 2px solid var(--warning); }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+
+.tabs {
+  display: flex; gap: 4px; border-bottom: 2px solid var(--border);
+  margin-bottom: 16px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  padding: 10px 14px; cursor: pointer; font-size: 13px; font-weight: 700;
+  color: var(--text-secondary); border-bottom: 3px solid transparent;
+  transition: all 0.2s; background: none; border: none;
+  white-space: nowrap; flex-shrink: 0; border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+.tab:hover { background: var(--border-light); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-light); }
+
+.section { display: none; }
+.section.active { display: block; }
+
+.badge {
+  display: inline-block; padding: 3px 10px; border-radius: var(--radius-sm);
+  font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.3px;
+}
+.badge-ater { background: #dbeafe; color: #1e40af; }
+.badge-muni { background: #dcfce7; color: #166534; }
+.badge-gas { background: #fef3c7; color: #92400e; }
+.badge-ener { background: #fef9c3; color: #a16207; }
+.badge-paid { background: var(--success-light); color: var(--success); border: 1px solid var(--success); }
+.badge-pending { background: var(--warning-light); color: #92400e; border: 1px solid var(--warning); }
+.badge-overdue { background: var(--danger-light); color: var(--danger); border: 1px solid var(--danger); }
+.badge-admin { background: var(--danger-light); color: var(--danger); border: 1px solid var(--danger); }
+.badge-super { background: #fef3c7; color: #92400e; border: 1px solid #facc15; }
+
+.empty { text-align: center; padding: 40px 20px; color: var(--text-tertiary); font-size: 14px; font-weight: 500; }
+.alert { padding: 12px 16px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 14px; font-weight: 700; border: 2px solid transparent; }
+.alert-info { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+.alert-success { background: var(--success-light); color: var(--success); border-color: var(--success); }
+.alert-warning { background: var(--warning-light); color: #92400e; border-color: var(--warning); }
+.alert-danger { background: var(--danger-light); color: var(--danger); border-color: var(--danger); }
+
+.login-screen, .setup-screen {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: linear-gradient(135deg, var(--bg), var(--bg-dark));
+  z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.setup-screen { display: none; }
+
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; padding: 10px 8px; border-bottom: 2px solid var(--border); color: var(--text-secondary); font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; }
+td { padding: 10px 8px; border-bottom: 1px solid var(--border-light); }
+tr:last-child td { border-bottom: none; }
+
+.stats-row { display: flex; gap: 10px; margin-bottom: 14px; }
+.stat-card { flex: 1; background: var(--bg-card); border: 2px solid var(--border); border-radius: var(--radius-sm); padding: 14px; text-align: center; }
+.stat-number { font-size: 24px; font-weight: 900; }
+.stat-label { font-size: 11px; color: var(--text-secondary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.payment-row {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 14px 0; border-bottom: 1px solid var(--border-light); gap: 10px;
+}
+.payment-row:last-child { border-bottom: none; }
+.payment-info { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.payment-title { font-weight: 800; font-size: 15px; }
+.payment-meta { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+.payment-amount { font-size: 18px; font-weight: 900; color: var(--success); }
+.payment-amount.pending { color: var(--warning); }
+.payment-amount.overdue { color: var(--danger); }
+
+.photo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.photo-box {
+  border: 2px dashed var(--border); border-radius: var(--radius-sm);
+  padding: 16px; text-align: center; background: var(--bg); cursor: pointer;
+  transition: all 0.2s; min-height: 120px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.photo-box:hover { border-color: var(--accent); background: var(--accent-light); }
+.photo-box.has-photo { border-style: solid; border-color: var(--success); background: var(--success-light); }
+.photo-box img { width: 100%; max-height: 100px; object-fit: cover; border-radius: 8px; margin-bottom: 6px; }
+.photo-box .photo-label { font-size: 11px; font-weight: 700; color: var(--text-secondary); }
+
+.filter-bar { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.filter-chip {
+  padding: 8px 14px; border-radius: 20px; font-size: 12px; font-weight: 700;
+  cursor: pointer; border: 2px solid var(--border); background: var(--bg); color: var(--text-secondary);
+  transition: all 0.2s; white-space: nowrap;
+}
+.filter-chip.active { background: var(--accent); color: white; border-color: var(--accent); }
+.filter-chip:hover:not(.active) { background: var(--border-light); }
+
+.user-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0; border-bottom: 1px solid var(--border-light); gap: 10px;
+}
+.user-row:last-child { border-bottom: none; }
+
+footer { text-align: center; padding: 30px 16px; color: var(--text-tertiary); font-size: 12px; border-top: 2px solid var(--border); margin-top: 20px; font-weight: 500; }
+
+@media (max-width: 480px) {
+  header h1 { font-size: 20px; }
+  .tab { padding: 8px 10px; font-size: 12px; }
+  .stat-number { font-size: 20px; }
+}
+</style>
+<base target="_blank">
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2563eb">
+<meta name="mobile-web-app-capable" content="yes">
+</head>
+<body>
+<div class="container">
+
+<!-- LOGIN -->
+<div id="login-screen" class="login-screen">
+  <div style="width:100%;max-width:420px;">
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="font-size:48px;margin-bottom:12px;">💰</div>
+      <h1 style="font-size:26px;font-weight:900;color:var(--text);margin-bottom:8px;">Gestor de Pagos</h1>
+      <p style="font-size:14px;color:var(--text-secondary);">Registro de servicios e impuestos</p>
+    </div>
+    <div class="card" style="padding:24px;">
+      <div id="login-error" style="display:none;margin-bottom:16px;padding:12px;background:var(--danger-light);color:var(--danger);border-radius:var(--radius-sm);font-size:13px;font-weight:700;text-align:center;"></div>
+      <label style="font-weight:700;font-size:13px;color:var(--text-secondary);margin-bottom:8px;display:block;">Usuario</label>
+      <input type="text" class="input" id="login-username" placeholder="Tu usuario" style="margin-bottom:12px;" onkeydown="if(event.key==='Enter')document.getElementById('login-password').focus()" />
+      <label style="font-weight:700;font-size:13px;color:var(--text-secondary);margin-bottom:8px;display:block;">Contraseña</label>
+      <input type="password" class="input" id="login-password" placeholder="Tu contraseña" style="margin-bottom:12px;" onkeydown="if(event.key==='Enter')doLogin()" />
+      <button class="btn btn-primary" style="width:100%;padding:14px;font-size:16px;" onclick="doLogin()">🔓 Ingresar</button>
+    </div>
+    <div style="text-align:center;margin-top:20px;font-size:12px;color:var(--text-tertiary);">
+      Gestor de Pagos v1.0
+    </div>
+  </div>
+</div>
+
+<!-- SETUP SUPER ADMIN -->
+<div id="setup-screen" class="setup-screen">
+  <div style="width:100%;max-width:420px;">
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="font-size:48px;margin-bottom:12px;">💰</div>
+      <h1 style="font-size:26px;font-weight:900;color:var(--text);margin-bottom:8px;">Gestor de Pagos</h1>
+      <p style="font-size:14px;color:var(--text-secondary);">Configuración inicial</p>
+    </div>
+    <div class="card" style="padding:24px;">
+      <div style="margin-bottom:16px;padding:12px;background:var(--warning-light);color:#92400e;border-radius:var(--radius-sm);font-size:13px;font-weight:700;text-align:center;border:2px solid var(--warning);">
+        ⚠️ Primera vez en este dispositivo<br>Creá el usuario Super Admin.
+      </div>
+      <label style="font-weight:700;font-size:13px;color:var(--text-secondary);margin-bottom:8px;display:block;">Usuario Super Admin</label>
+      <input type="text" class="input" id="setup-username" placeholder="Ej: mariano" style="margin-bottom:12px;" />
+      <label style="font-weight:700;font-size:13px;color:var(--text-secondary);margin-bottom:8px;display:block;">Contraseña</label>
+      <input type="password" class="input" id="setup-password" placeholder="Creá una contraseña" style="margin-bottom:12px;" />
+      <button class="btn btn-primary" style="width:100%;padding:14px;font-size:16px;" onclick="completeSetup()">🔐 Crear Super Admin</button>
+      <div id="setup-error" style="display:none;margin-top:12px;padding:10px;background:var(--danger-light);color:var(--danger);border-radius:var(--radius-sm);font-size:12px;font-weight:700;text-align:center;"></div>
+    </div>
+  </div>
+</div>
+
+<header>
+  <h1>💰 Gestor de Pagos</h1>
+  <p>Registro de servicios e impuestos</p>
+</header>
+
+<div id="user-info-bar" style="display:none;margin-bottom:14px;padding:10px 14px;background:var(--accent-light);border-radius:var(--radius-sm);border:1px solid var(--accent);font-size:13px;font-weight:700;color:var(--accent);display:flex;justify-content:space-between;align-items:center;">
+  <span>👤 <span id="current-username-display"></span> <span id="current-role-display" class="badge" style="margin-left:6px;"></span></span>
+  <span id="online-status" style="font-size:12px;">🟢 En línea</span>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab('new')">➕ Nuevo Pago</button>
+  <button class="tab" onclick="showTab('history')">📋 Historial</button>
+  <button class="tab" onclick="showTab('pending')">⏰ Pendientes</button>
+  <button class="tab" onclick="showTab('stats')">📊 Resumen</button>
+  <button class="tab" onclick="showTab('config')" id="tab-btn-config" style="display:none;">⚙️ Config</button>
+  <button class="tab" onclick="logout()" style="color:var(--danger);">🔒 Salir</button>
+</div>
+
+<!-- NUEVO PAGO -->
+<div id="tab-new" class="section active">
+  <div class="card">
+    <div class="card-title">➕ Registrar Nuevo Pago</div>
+
+    <label style="font-weight:700;font-size:13px;color:var(--text-secondary);margin-bottom:6px;display:block;">Servicio</label>
+    <select class="select" id="pay-service" onchange="updatePropertyOptions()">
+      <option value="">Seleccionar servicio...</option>
+    </select>
+
+    <label style="font-weight:700;font-size:13px;color:var(--text-secondary);margin-bottom:6px;display:block;">Propiedad / Ubicación</label>
+    <select class="select" id="pay-property">
+      <option value="">Seleccionar propiedad...</option>
+    </select>
+
+    <label style="font-weight:700;font-size:13px;color:var(--text-secondary);margin-bottom:6px;display:block;">N° Suministro / ID / Cuenta</label>
+    <input type="text" class="input" id="pay-account" placeholder="Ej: 123456789" />
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div>
+        <label style="font-weight:700;font-size:13px;color:var(--text-secondary);margin-bottom:6px;display:block;">📅 Vencimiento</label>
+        <input type="date" class="input" id="pay-due" style="margin-bottom:0;" />
+      </div>
+      <div>
+        <label style="font-weight:700;font-size:13px;color:var(--text-secondary);margin-bottom:6px;display:block;">💳 Fecha de Pago</label>
+        <input type="date" class="input" id="pay-paid" style="margin-bottom:0;" />
+      </div>
+    </div>
+
+    <label style="font-weight:700;font-size:13px;color:var(--text-secondary);margin-bottom:6px;display:block;">💵 Monto ($)</label>
+    <input type="number" class="input" id="pay-amount" placeholder="0,00" min="0" step="0.01" />
+
+    <label style="font-weight:700;font-size:13px;color:var(--text-secondary);margin-bottom:6px;display:block;">Método de Pago</label>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;" id="method-buttons">
+      <button type="button" class="btn btn-secondary" style="flex:1;" onclick="setMethod('mercadopago')" data-method="mercadopago">📱 Mercado Pago</button>
+      <button type="button" class="btn btn-secondary" style="flex:1;" onclick="setMethod('efectivo')" data-method="efectivo">💵 Efectivo</button>
+      <button type="button" class="btn btn-secondary" style="flex:1;" onclick="setMethod('transferencia')" data-method="transferencia">🏦 Transferencia</button>
+    </div>
+    <input type="hidden" id="pay-method" value="" />
+
+    <div id="bank-section" style="display:none;padding:12px;background:var(--bg-dark);border-radius:var(--radius-sm);border:2px dashed var(--border);margin-bottom:12px;">
+      <label style="font-weight:700;font-size:13px;color:var(--text-secondary);margin-bottom:6px;display:block;">🏦 Banco</label>
+      <select class="select" id="pay-bank" style="margin-bottom:0;">
+        <option value="">Seleccionar banco...</option>
+        <option value="nacion">🇦🇷 Banco de la Nación Argentina</option>
+        <option value="otro">🏦 Otro banco</option>
+      </select>
+    </div>
+
+    <div class="photo-grid">
+      <div class="photo-box" id="photo-invoice-box" onclick="document.getElementById('photo-invoice').click()">
+        <div style="font-size:28px;margin-bottom:4px;">📄</div>
+        <div class="photo-label">Foto de la Factura</div>
+        <input type="file" id="photo-invoice" accept="image/*" style="display:none;" onchange="compressPhoto(this, 'invoice')" />
+      </div>
+      <div class="photo-box" id="photo-receipt-box" onclick="document.getElementById('photo-receipt').click()">
+        <div style="font-size:28px;margin-bottom:4px;">🧾</div>
+        <div class="photo-label">Foto del Comprobante</div>
+        <input type="file" id="photo-receipt" accept="image/*" style="display:none;" onchange="compressPhoto(this, 'receipt')" />
+      </div>
+    </div>
+    <div id="photo-preview-area" style="display:none;margin-top:10px;"></div>
+
+    <label style="font-weight:700;font-size:13px;color:var(--text-secondary);margin-bottom:6px;display:block;margin-top:12px;">📝 Notas (opcional)</label>
+    <textarea class="textarea" id="pay-notes" placeholder="Ej: Pago correspondiente a enero 2026..."></textarea>
+
+    <button class="btn btn-success" style="width:100%;padding:14px;font-size:16px;" onclick="savePayment()">✅ Guardar Registro</button>
+    <div id="save-msg" style="margin-top:8px;font-size:12px;font-weight:600;text-align:center;"></div>
+  </div>
+</div>
+
+<!-- HISTORIAL -->
+<div id="tab-history" class="section">
+  <div class="filter-bar">
+    <button class="filter-chip active" onclick="filterHistory('all')">📋 Todos</button>
+    <button class="filter-chip" onclick="filterHistory('ater')">🏛️ ATER</button>
+    <button class="filter-chip" onclick="filterHistory('muni')">🏘️ Municipalidad</button>
+    <button class="filter-chip" onclick="filterHistory('gas')">🔥 GasNea</button>
+    <button class="filter-chip" onclick="filterHistory('ener')">⚡ Enersa</button>
+  </div>
+  <div id="history-list"></div>
+</div>
+
+<!-- PENDIENTES -->
+<div id="tab-pending" class="section">
+  <div id="pending-list"></div>
+</div>
+
+<!-- RESUMEN -->
+<div id="tab-stats" class="section">
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-number" id="stat-total" style="color:var(--accent);">$0</div>
+      <div class="stat-label">Total Pagado</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" id="stat-pending" style="color:var(--warning);">$0</div>
+      <div class="stat-label">Pendiente</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" id="stat-overdue" style="color:var(--danger);">0</div>
+      <div class="stat-label">Vencidos</div>
+    </div>
+  </div>
+  <div id="stats-by-service"></div>
+  <div id="stats-by-property"></div>
+</div>
+
+<!-- CONFIGURACIÓN -->
+<div id="tab-config" class="section">
+  <div class="card">
+    <div class="card-title">👤 Gestión de Usuarios</div>
+    <div style="margin-bottom:20px;padding:16px;border:2px solid var(--border);border-radius:var(--radius);background:var(--bg-card);">
+      <div style="font-size:15px;font-weight:800;color:var(--text);margin-bottom:12px;">➕ Nuevo Usuario</div>
+      <input type="text" class="input" id="new-user-username" placeholder="Nombre de usuario" style="margin-bottom:10px;" />
+      <input type="password" class="input" id="new-user-password" placeholder="Contraseña" style="margin-bottom:10px;" />
+      <select class="select" id="new-user-role" style="margin-bottom:12px;">
+        <option value="admin">🔐 Administrador</option>
+      </select>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="createUser()">➕ Crear Usuario</button>
+      </div>
+      <div id="create-user-msg" style="margin-top:8px;font-size:12px;font-weight:600;"></div>
+    </div>
+    <div style="padding:16px;border:2px solid var(--border);border-radius:var(--radius);background:var(--bg-card);">
+      <div style="font-size:15px;font-weight:800;color:var(--text);margin-bottom:12px;">📋 Usuarios registrados</div>
+      <div id="users-list"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">⚙️ Servicios</div>
+    <p class="card-subtitle">Servicios configurados actualmente.</p>
+    <div id="services-config-list"></div>
+    <div style="margin-top:16px;padding:16px;border:2px solid var(--border);border-radius:var(--radius);background:var(--bg-card);">
+      <div style="font-size:15px;font-weight:800;color:var(--text);margin-bottom:12px;">➕ Agregar Servicio</div>
+      <input type="text" class="input" id="new-service-name" placeholder="Nombre del servicio (ej: Aguas del Norte)" style="margin-bottom:10px;" />
+      <input type="text" class="input" id="new-service-properties" placeholder="Propiedades separadas por coma (ej: Casa 1, Casa 2)" />
+      <div class="actions">
+        <button class="btn btn-primary" onclick="addService()">➕ Agregar Servicio</button>
+      </div>
+      <div id="add-service-msg" style="margin-top:8px;font-size:12px;font-weight:600;"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🔐 Cambiar Mi Contraseña</div>
+    <input type="password" class="input" id="change-current-pass" placeholder="Contraseña actual" style="margin-bottom:10px;" />
+    <input type="password" class="input" id="change-new-pass" placeholder="Nueva contraseña" style="margin-bottom:10px;" />
+    <input type="password" class="input" id="change-confirm-pass" placeholder="Confirmar nueva contraseña" style="margin-bottom:12px;" />
+    <button class="btn btn-primary" onclick="changePassword()" style="width:100%;">🔐 Cambiar Contraseña</button>
+    <div id="change-pass-msg" style="margin-top:8px;font-size:12px;font-weight:600;"></div>
+  </div>
+
+  <div class="card" id="firebase-config-card">
+    <div class="card-title">🔥 Firebase Config</div>
+    <textarea class="input" id="firebase-config-input" placeholder='{"apiKey":"..."}' style="min-height:100px;font-family:monospace;font-size:12px;margin-bottom:10px;"></textarea>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="saveFirebaseConfig()">💾 Guardar</button>
+      <button class="btn btn-secondary btn-sm" onclick="testFirebaseConnection()">🔗 Probar</button>
+    </div>
+    <div id="firebase-status" style="margin-top:12px;"></div>
+  </div>
+
+  <div class="card" id="drive-config-card">
+    <div class="card-title">🔗 Google Drive Backup</div>
+    <input class="input" id="drive-url" placeholder="URL del Web App de Google Apps Script" style="margin-bottom:10px;" />
+    <div class="actions">
+      <button class="btn btn-primary" onclick="testDriveConnection()">🔗 Probar Conexión</button>
+      <button class="btn btn-success" onclick="syncToDriveManual()">📤 Sincronizar Ahora</button>
+      <button class="btn btn-secondary btn-sm" onclick="loadFromDrive()">📥 Cargar desde Drive</button>
+    </div>
+    <div id="drive-status" style="margin-top:12px;"></div>
+  </div>
+</div>
+
+<footer>
+  <p>Gestor de Pagos v1.0</p>
+  <p style="margin-top:4px;font-size:12px;color:var(--text-tertiary);">Uso familiar</p>
+</footer>
+
+</div>
+<script>
+// ============================================
+// CONFIGURACION FIREBASE — REEMPLAZAR CON LA TUYA
+// ============================================
+const firebaseConfig = {
+  apiKey: "TU_API_KEY",
+  authDomain: "tu-proyecto.firebaseapp.com",
+  databaseURL: "https://tu-proyecto-default-rtdb.firebaseio.com",
+  projectId: "tu-proyecto",
+  storageBucket: "tu-proyecto.firebasestorage.app",
+  messagingSenderId: "TU_SENDER_ID",
+  appId: "TU_APP_ID"
+};
+
+let firebaseApp = null;
+let firebaseDb = null;
+let firebaseConnected = false;
+
+// ============================================
+// DATA
+// ============================================
+let payments = JSON.parse(localStorage.getItem('gp_payments') || '[]');
+let services = JSON.parse(localStorage.getItem('gp_services') || JSON.stringify({
+  ater: { name: 'ATER', properties: ['Casa Soberanía 872','Casa Soberanía 867 (Chicha)','Casa Soberanía 867 (Grande)','Casa 25 de Mayo','Terreno 25 de Mayo','Terreno 1 - Calle Itatí','Terreno 2 - Calle Itatí'] },
+  muni: { name: 'Municipalidad de Federal', properties: ['Casa Soberanía 872','Casa Soberanía 867 (Chicha)','Casa Soberanía 867 (Grande)','Casa 25 de Mayo','Terreno 25 de Mayo','Terreno 1 - Calle Itatí','Terreno 2 - Calle Itatí'] },
+  gas: { name: 'GasNea', properties: ['Soberanía 872','Soberanía 872 Departamento'] },
+  ener: { name: 'Enersa', properties: ['Casa Soberanía 872','Casa Soberanía 872 Depto','Casa Soberanía 867 (Chicha)','Casa Soberanía 867 (Grande)','Soberanía 867 Trifásico','Casa 25 de Mayo'] }
+}));
+
+// ============================================
+// USUARIOS
+// ============================================
+let currentUser = JSON.parse(localStorage.getItem('gp_currentUser') || 'null');
+let users = JSON.parse(localStorage.getItem('gp_users') || '{}');
+
+function initFirebase() {
+  try {
+    if (typeof firebase === 'undefined' || !firebase.apps) {
+      console.log('Firebase no disponible');
+      decideInitialScreen();
+      return;
+    }
+    if (!firebase.apps.length) {
+      firebaseApp = firebase.initializeApp(firebaseConfig);
+    } else {
+      firebaseApp = firebase.app();
+    }
+    firebaseDb = firebase.database();
+    firebase.auth().signInAnonymously()
+      .then(() => {
+        console.log('Firebase Auth: OK');
+        firebaseConnected = true;
+        checkCloudData();
+        if (currentUser) {
+          validateSession();
+        } else {
+          decideInitialScreen();
+        }
+      })
+      .catch(err => {
+        console.error('Firebase Auth error:', err);
+        decideInitialScreen();
+      });
+  } catch(e) {
+    console.error('Firebase error:', e);
+    firebaseDb = null;
+    decideInitialScreen();
+  }
+}
+
+function checkCloudData() {
+  if (!firebaseDb) { decideInitialScreen(); return; }
+  firebaseDb.ref('gp_data').once('value', snap => {
+    const data = snap.val();
+    if (data) {
+      if (data.payments) { payments = data.payments; localStorage.setItem('gp_payments', JSON.stringify(payments)); }
+      if (data.services) { services = data.services; localStorage.setItem('gp_services', JSON.stringify(services)); }
+      if (data.users) { users = { ...users, ...data.users }; localStorage.setItem('gp_users', JSON.stringify(users)); }
+    }
+    decideInitialScreen();
+  }).catch(() => decideInitialScreen());
+}
+
+function saveToFirebase() {
+  if (!firebaseDb) return;
+  firebaseDb.ref('gp_data').update({
+    payments, services, users, updatedAt: Date.now()
+  }).catch(e => console.error('Firebase save error:', e));
+}
+
+function decideInitialScreen() {
+  const hasUsers = Object.keys(users).length > 0;
+  if (hasUsers) {
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('setup-screen').style.display = 'none';
+  } else {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('setup-screen').style.display = 'flex';
+  }
+}
+
+function completeSetup() {
+  const username = document.getElementById('setup-username').value.trim().toLowerCase();
+  const password = document.getElementById('setup-password').value.trim();
+  const errorEl = document.getElementById('setup-error');
+  if (!username || !password) { errorEl.textContent = '⚠️ Completá usuario y contraseña.'; errorEl.style.display = 'block'; return; }
+  if (username.length < 3) { errorEl.textContent = '⚠️ Mínimo 3 caracteres.'; errorEl.style.display = 'block'; return; }
+  if (password.length < 4) { errorEl.textContent = '⚠️ Mínimo 4 caracteres.'; errorEl.style.display = 'block'; return; }
+  if (Object.keys(users).length > 0) { errorEl.textContent = '⚠️ Ya existen usuarios.'; errorEl.style.display = 'block'; return; }
+
+  const token = Date.now() + '_' + Math.random().toString(36).substr(2, 12);
+  users[username] = { password, role: 'superadmin', createdAt: Date.now() };
+  currentUser = { username, role: 'superadmin', token };
+  localStorage.setItem('gp_users', JSON.stringify(users));
+  localStorage.setItem('gp_currentUser', JSON.stringify(currentUser));
+  saveToFirebase();
+  document.getElementById('setup-screen').style.display = 'none';
+  enterApp();
+}
+
+function doLogin() {
+  const username = document.getElementById('login-username').value.trim().toLowerCase();
+  const password = document.getElementById('login-password').value.trim();
+  const errorEl = document.getElementById('login-error');
+  if (!username || !password) { showLoginError('⚠️ Completá usuario y contraseña.'); return; }
+
+  const localUser = users[username];
+  if (localUser && localUser.password === password) {
+    const token = Date.now() + '_' + Math.random().toString(36).substr(2, 12);
+    currentUser = { username, role: localUser.role, token };
+    localStorage.setItem('gp_currentUser', JSON.stringify(currentUser));
+    document.getElementById('login-screen').style.display = 'none';
+    enterApp();
+    return;
+  }
+  showLoginError('❌ Usuario o contraseña incorrectos.');
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-error');
+  el.textContent = msg; el.style.display = 'block';
+}
+
+function enterApp() {
+  if (!currentUser) return;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('setup-screen').style.display = 'none';
+
+  const infoBar = document.getElementById('user-info-bar');
+  infoBar.style.display = 'flex';
+  document.getElementById('current-username-display').textContent = currentUser.username;
+  const roleBadge = document.getElementById('current-role-display');
+  if (currentUser.role === 'superadmin') {
+    roleBadge.textContent = '🔱 Super Admin';
+    roleBadge.className = 'badge badge-super';
+  } else {
+    roleBadge.textContent = '🔐 Admin';
+    roleBadge.className = 'badge badge-admin';
+  }
+
+  document.getElementById('tab-btn-config').style.display = 'inline-block';
+  document.getElementById('drive-url').value = driveUrl;
+
+  populateServiceSelect();
+  updatePropertyOptions();
+  renderHistory();
+  renderPending();
+  renderStats();
+  renderServicesConfig();
+  renderUsersList();
+}
+
+function logout() {
+  localStorage.removeItem('gp_currentUser');
+  currentUser = null;
+  location.reload();
+}
+
+function validateSession() {
+  enterApp();
+}
+
+// ============================================
+// PAGOS
+// ============================================
+let selectedMethod = '';
+let photoInvoice = '';
+let photoReceipt = '';
+
+function populateServiceSelect() {
+  const sel = document.getElementById('pay-service');
+  sel.innerHTML = '<option value="">Seleccionar servicio...</option>';
+  for (const [key, svc] of Object.entries(services)) {
+    const icon = key === 'ater' ? '🏛️' : key === 'muni' ? '🏘️' : key === 'gas' ? '🔥' : key === 'ener' ? '⚡' : '📋';
+    sel.innerHTML += '<option value="' + key + '">' + icon + ' ' + svc.name + '</option>';
+  }
+}
+
+function updatePropertyOptions() {
+  const svcKey = document.getElementById('pay-service').value;
+  const sel = document.getElementById('pay-property');
+  sel.innerHTML = '<option value="">Seleccionar propiedad...</option>';
+  if (!svcKey || !services[svcKey]) return;
+  services[svcKey].properties.forEach(p => {
+    sel.innerHTML += '<option value="' + p + '">' + p + '</option>';
+  });
+}
+
+function setMethod(method) {
+  selectedMethod = method;
+  document.getElementById('pay-method').value = method;
+  document.querySelectorAll('#method-buttons .btn').forEach(b => {
+    if (b.dataset.method === method) {
+      b.style.background = 'var(--accent)';
+      b.style.color = '#fff';
+      b.style.borderColor = 'var(--accent)';
+    } else {
+      b.style.background = '';
+      b.style.color = '';
+      b.style.borderColor = '';
+    }
+  });
+  document.getElementById('bank-section').style.display = method === 'transferencia' ? 'block' : 'none';
+}
+
+function compressPhoto(input, type) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const maxW = 800, maxH = 1000;
+      let w = img.width, h = img.height;
+      if (w > maxW) { h = h * (maxW / w); w = maxW; }
+      if (h > maxH) { w = w * (maxH / h); h = maxH; }
+      canvas.width = w; canvas.height = h;
+      ctx.drawImage(img, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.6);
+      if (type === 'invoice') photoInvoice = dataUrl;
+      else photoReceipt = dataUrl;
+      showPhotoPreview();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function showPhotoPreview() {
+  const area = document.getElementById('photo-preview-area');
+  let html = '';
+  if (photoInvoice) html += '<div style="display:inline-block;margin-right:8px;"><img src="' + photoInvoice + '" style="max-width:120px;max-height:120px;border-radius:8px;border:2px solid var(--success);" /></div>';
+  if (photoReceipt) html += '<div style="display:inline-block;"><img src="' + photoReceipt + '" style="max-width:120px;max-height:120px;border-radius:8px;border:2px solid var(--success);" /></div>';
+  area.innerHTML = html;
+  area.style.display = html ? 'block' : 'none';
+}
+
+function savePayment() {
+  const svcKey = document.getElementById('pay-service').value;
+  const property = document.getElementById('pay-property').value;
+  const account = document.getElementById('pay-account').value.trim();
+  const dueDate = document.getElementById('pay-due').value;
+  const paidDate = document.getElementById('pay-paid').value;
+  const amount = parseFloat(document.getElementById('pay-amount').value) || 0;
+  const method = selectedMethod;
+  const bank = document.getElementById('pay-bank').value;
+  const notes = document.getElementById('pay-notes').value.trim();
+  const msgEl = document.getElementById('save-msg');
+
+  if (!svcKey) { msgEl.innerHTML = '<span style="color:var(--warning);">⚠️ Seleccioná un servicio</span>'; return; }
+  if (!property) { msgEl.innerHTML = '<span style="color:var(--warning);">⚠️ Seleccioná una propiedad</span>'; return; }
+  if (!dueDate) { msgEl.innerHTML = '<span style="color:var(--warning);">⚠️ Ingresá la fecha de vencimiento</span>'; return; }
+  if (amount <= 0) { msgEl.innerHTML = '<span style="color:var(--warning);">⚠️ Ingresá el monto</span>'; return; }
+  if (!method) { msgEl.innerHTML = '<span style="color:var(--warning);">⚠️ Seleccioná un método de pago</span>'; return; }
+  if (method === 'transferencia' && !bank) { msgEl.innerHTML = '<span style="color:var(--warning);">⚠️ Seleccioná el banco</span>'; return; }
+
+  const payment = {
+    id: Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+    service: svcKey,
+    property,
+    account,
+    dueDate,
+    paidDate: paidDate || null,
+    amount,
+    method,
+    bank: method === 'transferencia' ? bank : '',
+    photoInvoice,
+    photoReceipt,
+    notes,
+    createdAt: Date.now(),
+    createdBy: currentUser.username
+  };
+
+  payments.push(payment);
+  localStorage.setItem('gp_payments', JSON.stringify(payments));
+  saveToFirebase();
+
+  document.getElementById('pay-service').value = '';
+  document.getElementById('pay-property').innerHTML = '<option value="">Seleccionar propiedad...</option>';
+  document.getElementById('pay-account').value = '';
+  document.getElementById('pay-due').value = '';
+  document.getElementById('pay-paid').value = '';
+  document.getElementById('pay-amount').value = '';
+  document.getElementById('pay-bank').value = '';
+  document.getElementById('pay-notes').value = '';
+  document.getElementById('bank-section').style.display = 'none';
+  document.getElementById('photo-preview-area').innerHTML = '';
+  document.getElementById('photo-preview-area').style.display = 'none';
+  photoInvoice = ''; photoReceipt = ''; selectedMethod = '';
+  document.querySelectorAll('#method-buttons .btn').forEach(b => { b.style.background = ''; b.style.color = ''; b.style.borderColor = ''; });
+
+  msgEl.innerHTML = '<span style="color:var(--success);">✅ Registro guardado correctamente</span>';
+  setTimeout(() => msgEl.innerHTML = '', 3000);
+
+  renderHistory(); renderPending(); renderStats();
+}
+
+// ============================================
+// RENDER
+// ============================================
+let historyFilter = 'all';
+
+function showTab(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (event && event.target) event.target.classList.add('active');
+  if (name === 'history') renderHistory();
+  if (name === 'pending') renderPending();
+  if (name === 'stats') renderStats();
+  if (name === 'config') { renderServicesConfig(); renderUsersList(); }
+}
+
+function filterHistory(filter) {
+  historyFilter = filter;
+  document.querySelectorAll('#tab-history .filter-chip').forEach(c => c.classList.remove('active'));
+  if (event && event.target) event.target.classList.add('active');
+  renderHistory();
+}
+
+function renderHistory() {
+  const el = document.getElementById('history-list');
+  let filtered = payments;
+  if (historyFilter !== 'all') filtered = filtered.filter(p => p.service === historyFilter);
+  filtered = filtered.sort((a, b) => b.createdAt - a.createdAt);
+
+  if (!filtered.length) { el.innerHTML = '<div class="empty">No hay registros</div>'; return; }
+
+  el.innerHTML = filtered.map(p => renderPaymentCard(p)).join('');
+}
+
+function renderPending() {
+  const el = document.getElementById('pending-list');
+  const now = new Date(); now.setHours(0,0,0,0);
+  const pending = payments.filter(p => !p.paidDate).sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+  if (!pending.length) { el.innerHTML = '<div class="empty">🎉 No hay pagos pendientes</div>'; return; }
+
+  el.innerHTML = pending.map(p => {
+    const due = new Date(p.dueDate); due.setHours(0,0,0,0);
+    const isOverdue = due < now;
+    const daysLeft = Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+    const statusBadge = isOverdue
+      ? '<span class="badge badge-overdue">⚠️ VENCIDO</span>'
+      : daysLeft <= 7
+        ? '<span class="badge badge-pending">⏰ ' + daysLeft + ' días</span>'
+        : '<span class="badge badge-pending">📅 Pendiente</span>';
+
+    return '<div class="card" style="border-left:4px solid ' + (isOverdue ? 'var(--danger)' : daysLeft <= 7 ? 'var(--warning)' : 'var(--accent)') + ';">' +
+      '<div class="payment-row" style="padding:0;border:none;">' +
+        '<div class="payment-info">' +
+          '<div class="payment-title">' + getServiceName(p.service) + ' — ' + p.property + '</div>' +
+          '<div class="payment-meta">Vence: ' + formatDate(p.dueDate) + ' ' + statusBadge + '</div>' +
+          '<div class="payment-meta">Monto: <strong>$' + p.amount.toLocaleString('es-AR') + '</strong></div>' +
+          (p.account ? '<div class="payment-meta">ID: ' + p.account + '</div>' : '') +
+        '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">' +
+          '<button class="btn btn-success btn-sm" onclick="markAsPaid('' + p.id + '')">💳 Pagar</button>' +
+          '<button class="btn btn-danger btn-sm" onclick="deletePayment('' + p.id + '')">🗑️</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function renderPaymentCard(p) {
+  const svcName = getServiceName(p.service);
+  const badgeClass = p.service === 'ater' ? 'badge-ater' : p.service === 'muni' ? 'badge-muni' : p.service === 'gas' ? 'badge-gas' : 'badge-ener';
+  const isPaid = !!p.paidDate;
+  const statusBadge = isPaid ? '<span class="badge badge-paid">✅ Pagado</span>' : '<span class="badge badge-pending">⏰ Pendiente</span>';
+  const methodLabel = p.method === 'mercadopago' ? '📱 Mercado Pago' : p.method === 'efectivo' ? '💵 Efectivo' : p.method === 'transferencia' ? '🏦 Transferencia' + (p.bank ? ' — ' + (p.bank === 'nacion' ? 'Nación' : 'Otro') : '') : '';
+
+  let photosHtml = '';
+  if (p.photoInvoice || p.photoReceipt) {
+    photosHtml = '<div style="display:flex;gap:8px;margin-top:10px;">';
+    if (p.photoInvoice) photosHtml += '<img src="' + p.photoInvoice + '" style="max-width:80px;max-height:80px;border-radius:8px;border:2px solid var(--border);cursor:pointer;" onclick="window.open(this.src)" />';
+    if (p.photoReceipt) photosHtml += '<img src="' + p.photoReceipt + '" style="max-width:80px;max-height:80px;border-radius:8px;border:2px solid var(--border);cursor:pointer;" onclick="window.open(this.src)" />';
+    photosHtml += '</div>';
+  }
+
+  return '<div class="card">' +
+    '<div class="payment-row" style="padding:0;border:none;">' +
+      '<div class="payment-info">' +
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">' +
+          '<span class="badge ' + badgeClass + '">' + svcName + '</span>' +
+          statusBadge +
+        '</div>' +
+        '<div class="payment-title">' + p.property + '</div>' +
+        '<div class="payment-meta">Vencimiento: ' + formatDate(p.dueDate) + (p.paidDate ? ' • Pagado: ' + formatDate(p.paidDate) : '') + '</div>' +
+        '<div class="payment-meta">Monto: <span class="payment-amount ' + (isPaid ? '' : 'pending') + '">$' + p.amount.toLocaleString('es-AR') + '</span></div>' +
+        (p.account ? '<div class="payment-meta">ID: ' + p.account + '</div>' : '') +
+        (methodLabel ? '<div class="payment-meta">Método: ' + methodLabel + '</div>' : '') +
+        (p.notes ? '<div class="payment-meta" style="font-style:italic;color:var(--text-tertiary);">📝 ' + p.notes + '</div>' : '') +
+        photosHtml +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">' +
+        (!isPaid ? '<button class="btn btn-success btn-sm" onclick="markAsPaid('' + p.id + '')">💳 Pagar</button>' : '') +
+        '<button class="btn btn-danger btn-sm" onclick="deletePayment('' + p.id + '')">🗑️</button>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
+function renderStats() {
+  const now = new Date(); now.setHours(0,0,0,0);
+  let totalPaid = 0, totalPending = 0, overdueCount = 0;
+  const byService = {};
+  const byProperty = {};
+
+  payments.forEach(p => {
+    const svc = getServiceName(p.service);
+    if (!byService[svc]) byService[svc] = { paid: 0, pending: 0 };
+    if (!byProperty[p.property]) byProperty[p.property] = { paid: 0, pending: 0 };
+
+    if (p.paidDate) {
+      totalPaid += p.amount;
+      byService[svc].paid += p.amount;
+      byProperty[p.property].paid += p.amount;
+    } else {
+      totalPending += p.amount;
+      byService[svc].pending += p.amount;
+      byProperty[p.property].pending += p.amount;
+      const due = new Date(p.dueDate); due.setHours(0,0,0,0);
+      if (due < now) overdueCount++;
+    }
+  });
+
+  document.getElementById('stat-total').textContent = '$' + totalPaid.toLocaleString('es-AR');
+  document.getElementById('stat-pending').textContent = '$' + totalPending.toLocaleString('es-AR');
+  document.getElementById('stat-overdue').textContent = overdueCount;
+
+  let svcHtml = '<div class="card"><div class="card-title">📊 Por Servicio</div>';
+  for (const [svc, data] of Object.entries(byService)) {
+    svcHtml += '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border-light);">' +
+      '<span style="font-weight:700;">' + svc + '</span>' +
+      '<span style="color:var(--success);font-weight:800;">$' + data.paid.toLocaleString('es-AR') + '</span>' +
+      (data.pending > 0 ? '<span style="color:var(--warning);font-weight:700;margin-left:8px;">Pend: $' + data.pending.toLocaleString('es-AR') + '</span>' : '') +
+    '</div>';
+  }
+  svcHtml += '</div>';
+  document.getElementById('stats-by-service').innerHTML = svcHtml;
+
+  let propHtml = '<div class="card"><div class="card-title">📊 Por Propiedad</div>';
+  for (const [prop, data] of Object.entries(byProperty)) {
+    propHtml += '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border-light);">' +
+      '<span style="font-weight:700;">' + prop + '</span>' +
+      '<span style="color:var(--success);font-weight:800;">$' + data.paid.toLocaleString('es-AR') + '</span>' +
+      (data.pending > 0 ? '<span style="color:var(--warning);font-weight:700;margin-left:8px;">Pend: $' + data.pending.toLocaleString('es-AR') + '</span>' : '') +
+    '</div>';
+  }
+  propHtml += '</div>';
+  document.getElementById('stats-by-property').innerHTML = propHtml;
+}
+
+function markAsPaid(id) {
+  const p = payments.find(x => x.id === id);
+  if (!p) return;
+  p.paidDate = new Date().toISOString().split('T')[0];
+  localStorage.setItem('gp_payments', JSON.stringify(payments));
+  saveToFirebase();
+  renderHistory(); renderPending(); renderStats();
+}
+
+function deletePayment(id) {
+  if (!confirm('¿Eliminar este registro?')) return;
+  payments = payments.filter(p => p.id !== id);
+  localStorage.setItem('gp_payments', JSON.stringify(payments));
+  saveToFirebase();
+  renderHistory(); renderPending(); renderStats();
+}
+
+function getServiceName(key) {
+  return services[key]?.name || key;
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('es-AR');
+}
+
+// ============================================
+// USUARIOS
+// ============================================
+function createUser() {
+  if (currentUser?.role !== 'superadmin') { alert('🚫 Solo Super Admin.'); return; }
+  const username = document.getElementById('new-user-username').value.trim().toLowerCase();
+  const password = document.getElementById('new-user-password').value.trim();
+  const role = document.getElementById('new-user-role').value;
+  const msgEl = document.getElementById('create-user-msg');
+
+  if (!username || !password) { msgEl.innerHTML = '<span style="color:var(--warning);">⚠️ Completá todos los campos</span>'; return; }
+  if (username.length < 3) { msgEl.innerHTML = '<span style="color:var(--warning);">⚠️ Mínimo 3 caracteres</span>'; return; }
+  if (password.length < 4) { msgEl.innerHTML = '<span style="color:var(--warning);">⚠️ Mínimo 4 caracteres</span>'; return; }
+  if (users[username]) { msgEl.innerHTML = '<span style="color:var(--warning);">⚠️ Ese usuario ya existe</span>'; return; }
+  if (role === 'superadmin') { msgEl.innerHTML = '<span style="color:var(--danger);">🚫 No se pueden crear más Super Admins.</span>'; return; }
+
+  users[username] = { password, role, createdAt: Date.now(), createdBy: currentUser.username };
+  localStorage.setItem('gp_users', JSON.stringify(users));
+  saveToFirebase();
+
+  document.getElementById('new-user-username').value = '';
+  document.getElementById('new-user-password').value = '';
+  msgEl.innerHTML = '<span style="color:var(--success);">✅ Usuario creado: ' + username + '</span>';
+  renderUsersList();
+  setTimeout(() => msgEl.innerHTML = '', 3000);
+}
+
+function deleteUser(username) {
+  if (currentUser?.role !== 'superadmin') return;
+  if (!confirm('¿Eliminar al usuario "' + username + '"?')) return;
+  if (username === currentUser.username) { alert('❌ No podés eliminarte a vos mismo.'); return; }
+  if (users[username]?.role === 'superadmin') { alert('🚫 No podés eliminar al Super Admin.'); return; }
+  delete users[username];
+  localStorage.setItem('gp_users', JSON.stringify(users));
+  saveToFirebase();
+  renderUsersList();
+}
+
+function renderUsersList() {
+  const el = document.getElementById('users-list');
+  if (!el) return;
+  const list = Object.keys(users).map(u => ({ username: u, ...users[u] }));
+  if (!list.length) { el.innerHTML = '<div class="empty">No hay usuarios</div>'; return; }
+
+  el.innerHTML = list.map(u => {
+    const roleBadge = u.role === 'superadmin'
+      ? '<span class="badge badge-super">🔱 Super Admin</span>'
+      : '<span class="badge badge-admin">🔐 Admin</span>';
+    return '<div class="user-row">' +
+      '<div style="flex:1;">' +
+        '<div style="font-weight:800;font-size:15px;display:flex;align-items:center;gap:8px;">' + u.username + ' ' + roleBadge + '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:6px;">' +
+        (currentUser?.role === 'superadmin' && u.role !== 'superadmin' ? '<button class="btn btn-danger btn-sm" onclick="deleteUser('' + u.username + '')">🗑️ Eliminar</button>' : '') +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function changePassword() {
+  const currentPass = document.getElementById('change-current-pass').value;
+  const newPass = document.getElementById('change-new-pass').value;
+  const confirmPass = document.getElementById('change-confirm-pass').value;
+  const msgEl = document.getElementById('change-pass-msg');
+
+  if (!currentPass || !newPass || !confirmPass) { msgEl.innerHTML = '<span style="color:var(--warning);">⚠️ Completá todos los campos</span>'; return; }
+  const user = users[currentUser.username];
+  if (!user || user.password !== currentPass) { msgEl.innerHTML = '<span style="color:var(--danger);">❌ Contraseña actual incorrecta</span>'; return; }
+  if (newPass.length < 4) { msgEl.innerHTML = '<span style="color:var(--warning);">⚠️ Mínimo 4 caracteres</span>'; return; }
+  if (newPass !== confirmPass) { msgEl.innerHTML = '<span style="color:var(--warning);">⚠️ Las contraseñas no coinciden</span>'; return; }
+
+  user.password = newPass;
+  localStorage.setItem('gp_users', JSON.stringify(users));
+  saveToFirebase();
+  msgEl.innerHTML = '<span style="color:var(--success);">✅ Contraseña cambiada</span>';
+  document.getElementById('change-current-pass').value = '';
+  document.getElementById('change-new-pass').value = '';
+  document.getElementById('change-confirm-pass').value = '';
+  setTimeout(() => msgEl.innerHTML = '', 3000);
+}
+
+// ============================================
+// SERVICIOS CONFIGURABLES
+// ============================================
+function renderServicesConfig() {
+  const el = document.getElementById('services-config-list');
+  if (!el) return;
+  let html = '';
+  for (const [key, svc] of Object.entries(services)) {
+    const icon = key === 'ater' ? '🏛️' : key === 'muni' ? '🏘️' : key === 'gas' ? '🔥' : key === 'ener' ? '⚡' : '📋';
+    html += '<div style="padding:12px 0;border-bottom:1px solid var(--border-light);">' +
+      '<div style="font-weight:800;font-size:14px;">' + icon + ' ' + svc.name + '</div>' +
+      '<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">' + svc.properties.join(' • ') + '</div>' +
+    '</div>';
+  }
+  el.innerHTML = html || '<div class="empty">No hay servicios configurados</div>';
+}
+
+function addService() {
+  const name = document.getElementById('new-service-name').value.trim();
+  const propsStr = document.getElementById('new-service-properties').value.trim();
+  const msgEl = document.getElementById('add-service-msg');
+
+  if (!name || !propsStr) { msgEl.innerHTML = '<span style="color:var(--warning);">⚠️ Completá nombre y propiedades</span>'; return; }
+
+  const key = 'svc_' + Date.now();
+  const properties = propsStr.split(',').map(p => p.trim()).filter(Boolean);
+  services[key] = { name, properties };
+  localStorage.setItem('gp_services', JSON.stringify(services));
+  saveToFirebase();
+
+  document.getElementById('new-service-name').value = '';
+  document.getElementById('new-service-properties').value = '';
+  msgEl.innerHTML = '<span style="color:var(--success);">✅ Servicio agregado: ' + name + '</span>';
+  renderServicesConfig();
+  populateServiceSelect();
+  setTimeout(() => msgEl.innerHTML = '', 3000);
+}
+
+// ============================================
+// FIREBASE CONFIG (en app)
+// ============================================
+function saveFirebaseConfig() {
+  var val = document.getElementById('firebase-config-input').value.trim();
+  if (!val) { alert('Pegá la configuración primero.'); return; }
+  try {
+    var cfg = JSON.parse(val);
+    if (!cfg.apiKey || !cfg.databaseURL) {
+      document.getElementById('firebase-status').innerHTML = '<div class="alert alert-warning">⚠️ Faltan apiKey o databaseURL</div>';
+      return;
+    }
+    document.getElementById('firebase-status').innerHTML = '<div class="alert alert-success">✅ Configuración válida. Recargá la página para aplicarla.</div>';
+  } catch(e) {
+    document.getElementById('firebase-status').innerHTML = '<div class="alert alert-danger">❌ JSON inválido</div>';
+  }
+}
+
+function testFirebaseConnection() {
+  if (!firebaseDb) {
+    document.getElementById('firebase-status').innerHTML = '<div class="alert alert-warning">⚠️ Firebase no inicializado</div>';
+    return;
+  }
+  firebaseDb.ref('.info/connected').once('value', snap => {
+    if (snap.val() === true) {
+      document.getElementById('firebase-status').innerHTML = '<div class="alert alert-success">✅ Conectado a Firebase</div>';
+    } else {
+      document.getElementById('firebase-status').innerHTML = '<div class="alert alert-warning">⚠️ Firebase inicializado pero sin conexión</div>';
+    }
+  });
+}
+
+// ============================================
+// GOOGLE DRIVE
+// ============================================
+let driveUrl = localStorage.getItem('gp_driveUrl') || '';
+
+function testDriveConnection() {
+  const url = document.getElementById('drive-url').value.trim() || driveUrl;
+  if (!url) { document.getElementById('drive-status').innerHTML = '<div class="alert alert-warning">⚠️ Pegá la URL del Web App primero</div>'; return; }
+  driveUrl = url; localStorage.setItem('gp_driveUrl', driveUrl);
+  document.getElementById('drive-status').innerHTML = '<div class="alert alert-info">🔗 Probando conexión...</div>';
+  fetch(url + '?action=load')
+    .then(res => res.json())
+    .then(data => {
+      if (data.payments !== undefined) {
+        document.getElementById('drive-status').innerHTML = '<div class="alert alert-success">✅ Conexión exitosa con Google Drive</div>';
+      } else {
+        document.getElementById('drive-status').innerHTML = '<div class="alert alert-warning">⚠️ Respuesta inesperada</div>';
+      }
+    })
+    .catch(e => {
+      document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ Error: ' + e.message + '</div>';
+    });
+}
+
+function syncToDriveManual() {
+  const url = document.getElementById('drive-url').value.trim() || driveUrl;
+  if (!url) { document.getElementById('drive-status').innerHTML = '<div class="alert alert-warning">⚠️ Configurá la URL del Web App primero</div>'; return; }
+  driveUrl = url; localStorage.setItem('gp_driveUrl', driveUrl);
+  document.getElementById('drive-status').innerHTML = '<div class="alert alert-info">📤 Sincronizando...</div>';
+
+  const payload = { action: 'sync', payments: payments, services: services };
+  fetch(driveUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) })
+    .then(res => res.text())
+    .then(text => {
+      try { var data = JSON.parse(text); } catch(e) { data = { error: text.substring(0, 200) }; }
+      if (data.success) {
+        document.getElementById('drive-status').innerHTML = '<div class="alert alert-success">✅ Sincronizado con Google Drive</div>';
+      } else {
+        document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ Error: ' + (data.error || 'desconocido') + '</div>';
+      }
+    })
+    .catch(e => {
+      document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ Error de conexión: ' + e.message + '</div>';
+    });
+}
+
+function loadFromDrive() {
+  const url = document.getElementById('drive-url').value.trim() || driveUrl;
+  if (!url) { alert('Configurá la URL primero'); return; }
+  driveUrl = url; localStorage.setItem('gp_driveUrl', driveUrl);
+  document.getElementById('drive-status').innerHTML = '<div class="alert alert-info">📥 Cargando...</div>';
+  fetch(url + '?action=load')
+    .then(res => res.json())
+    .then(data => {
+      if (data.payments) { payments = data.payments; localStorage.setItem('gp_payments', JSON.stringify(payments)); }
+      if (data.services) { services = data.services; localStorage.setItem('gp_services', JSON.stringify(services)); }
+      renderHistory(); renderPending(); renderStats(); renderServicesConfig(); populateServiceSelect();
+      document.getElementById('drive-status').innerHTML = '<div class="alert alert-success">✅ Datos cargados desde Drive</div>';
+    })
+    .catch(e => {
+      document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ Error: ' + e.message + '</div>';
+    });
+}
+
+// ============================================
+// INIT
+// ============================================
+initFirebase();
+</script>
+</body>
+</html>
