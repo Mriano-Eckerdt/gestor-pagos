@@ -1094,7 +1094,7 @@ function testFirebaseConnection() {
 // ============================================
 // GOOGLE DRIVE
 // ============================================
-let driveUrl = localStorage.getItem('gp_driveUrl') || '';
+let driveUrl = localStorage.getItem('gp_driveUrl') || 'https://script.google.com/macros/s/AKfycbz19hJcALTyot8URMAG6oa11c6v3lT2AjwjIcJAdupG0b7pvqtWvCrnNXdpodrl4mqK/exec;
 
 function testDriveConnection() {
   const url = document.getElementById('drive-url').value.trim() || driveUrl;
