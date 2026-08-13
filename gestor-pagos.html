@@ -1101,18 +1101,25 @@ function testDriveConnection() {
   if (!url) { document.getElementById('drive-status').innerHTML = '<div class="alert alert-warning">⚠️ Pegá la URL del Web App primero</div>'; return; }
   driveUrl = url; localStorage.setItem('gp_driveUrl', driveUrl);
   document.getElementById('drive-status').innerHTML = '<div class="alert alert-info">🔗 Probando conexión...</div>';
-  fetch(url + '?action=load')
-    .then(res => res.json())
-    .then(data => {
-      if (data.payments !== undefined) {
-        document.getElementById('drive-status').innerHTML = '<div class="alert alert-success">✅ Conexión exitosa con Google Drive</div>';
-      } else {
-        document.getElementById('drive-status').innerHTML = '<div class="alert alert-warning">⚠️ Respuesta inesperada</div>';
-      }
-    })
-    .catch(e => {
-      document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ Error: ' + e.message + '</div>';
-    });
+
+  const cb = 'driveTest_' + Date.now();
+  window[cb] = function(data) {
+    delete window[cb];
+    if (script.parentNode) script.parentNode.removeChild(script);
+    if (data && data.payments !== undefined) {
+      document.getElementById('drive-status').innerHTML = '<div class="alert alert-success">✅ Conexión exitosa con Google Drive</div>';
+    } else {
+      document.getElementById('drive-status').innerHTML = '<div class="alert alert-warning">⚠️ Respuesta inesperada</div>';
+    }
+  };
+  const script = document.createElement('script');
+  script.src = url + '?action=load&callback=' + cb;
+  script.onerror = function() {
+    delete window[cb];
+    if (script.parentNode) script.parentNode.removeChild(script);
+    document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ Error de conexión</div>';
+  };
+  document.body.appendChild(script);
 }
 
 function syncToDriveManual() {
@@ -1122,15 +1129,9 @@ function syncToDriveManual() {
   document.getElementById('drive-status').innerHTML = '<div class="alert alert-info">📤 Sincronizando...</div>';
 
   const payload = { action: 'sync', payments: payments, services: services };
-  fetch(driveUrl, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) })
-    .then(res => res.text())
-    .then(text => {
-      try { var data = JSON.parse(text); } catch(e) { data = { error: text.substring(0, 200) }; }
-      if (data.success) {
-        document.getElementById('drive-status').innerHTML = '<div class="alert alert-success">✅ Sincronizado con Google Drive</div>';
-      } else {
-        document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ Error: ' + (data.error || 'desconocido') + '</div>';
-      }
+  fetch(driveUrl, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) })
+    .then(() => {
+      document.getElementById('drive-status').innerHTML = '<div class="alert alert-success">✅ Datos enviados a Google Drive</div>';
     })
     .catch(e => {
       document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ Error de conexión: ' + e.message + '</div>';
@@ -1142,17 +1143,24 @@ function loadFromDrive() {
   if (!url) { alert('Configurá la URL primero'); return; }
   driveUrl = url; localStorage.setItem('gp_driveUrl', driveUrl);
   document.getElementById('drive-status').innerHTML = '<div class="alert alert-info">📥 Cargando...</div>';
-  fetch(url + '?action=load')
-    .then(res => res.json())
-    .then(data => {
-      if (data.payments) { payments = data.payments; localStorage.setItem('gp_payments', JSON.stringify(payments)); }
-      if (data.services) { services = data.services; localStorage.setItem('gp_services', JSON.stringify(services)); }
-      renderHistory(); renderPending(); renderStats(); renderServicesConfig(); populateServiceSelect();
-      document.getElementById('drive-status').innerHTML = '<div class="alert alert-success">✅ Datos cargados desde Drive</div>';
-    })
-    .catch(e => {
-      document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ Error: ' + e.message + '</div>';
-    });
+
+  const cb = 'driveLoad_' + Date.now();
+  window[cb] = function(data) {
+    delete window[cb];
+    if (script.parentNode) script.parentNode.removeChild(script);
+    if (data.payments) { payments = data.payments; localStorage.setItem('gp_payments', JSON.stringify(payments)); }
+    if (data.services) { services = data.services; localStorage.setItem('gp_services', JSON.stringify(services)); }
+    renderHistory(); renderPending(); renderStats(); renderServicesConfig(); populateServiceSelect();
+    document.getElementById('drive-status').innerHTML = '<div class="alert alert-success">✅ Datos cargados desde Drive</div>';
+  };
+  const script = document.createElement('script');
+  script.src = url + '?action=load&callback=' + cb;
+  script.onerror = function() {
+    delete window[cb];
+    if (script.parentNode) script.parentNode.removeChild(script);
+    document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ Error al cargar</div>';
+  };
+  document.body.appendChild(script);
 }
 
 // ============================================
