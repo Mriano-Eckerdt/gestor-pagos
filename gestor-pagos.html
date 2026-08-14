@@ -1103,121 +1103,61 @@ function testDriveConnection() {
   if (!url) { document.getElementById('drive-status').innerHTML = '<div class="alert alert-warning">⚠️ Pegá la URL del Web App primero</div>'; return; }
   driveUrl = url; localStorage.setItem('gp_driveUrl', driveUrl);
   document.getElementById('drive-status').innerHTML = '<div class="alert alert-info">🔗 Probando conexión...</div>';
-
-  // JSONP approach - no CORS issues
-  const cb = 'drive_cb_' + Date.now();
-  window[cb] = function(data) {
-    delete window[cb];
-    if (script && script.parentNode) script.parentNode.removeChild(script);
-    if (data && (data.payments !== undefined || data.services !== undefined)) {
-      document.getElementById('drive-status').innerHTML = '<div class="alert alert-success">✅ Conexión exitosa con Google Drive</div>';
-    } else if (data && data.error) {
-      document.getElementById('drive-status').innerHTML = '<div class="alert alert-warning">⚠️ Drive responde pero con error: ' + data.error + '</div>';
-    } else {
-      document.getElementById('drive-status').innerHTML = '<div class="alert alert-warning">⚠️ Respuesta inesperada</div>';
-    }
-  };
-  const script = document.createElement('script');
-  script.src = url + '?action=load&callback=' + cb;
-  script.onerror = function() {
-    delete window[cb];
-    if (script && script.parentNode) script.parentNode.removeChild(script);
-    document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ No se pudo conectar. Verificá que la URL sea correcta y que el deployment sea "Anyone".</div>';
-  };
-  // 10 second timeout
-  setTimeout(function() {
-    if (window[cb]) {
-      delete window[cb];
-      if (script && script.parentNode) script.parentNode.removeChild(script);
-      document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ Timeout: el script no respondió</div>';
-    }
-  }, 10000);
-  document.body.appendChild(script);
+  fetch(url + '?action=load')
+    .then(res => res.json())
+    .then(data => {
+      if (data.payments !== undefined) {
+        document.getElementById('drive-status').innerHTML = '<div class="alert alert-success">✅ Conexión exitosa con Google Drive</div>';
+      } else {
+        document.getElementById('drive-status').innerHTML = '<div class="alert alert-warning">⚠️ Respuesta inesperada</div>';
+      }
+    })
+    .catch(e => {
+      document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ Error: ' + e.message + '</div>';
+    });
 }
 
 function syncToDriveManual() {
   const url = document.getElementById('drive-url').value.trim() || driveUrl;
   if (!url) { document.getElementById('drive-status').innerHTML = '<div class="alert alert-warning">⚠️ Configurá la URL del Web App primero</div>'; return; }
   driveUrl = url; localStorage.setItem('gp_driveUrl', driveUrl);
-  document.getElementById('drive-status').innerHTML = '<div class="alert alert-info">📤 Enviando datos a Google Drive...</div>';
+  document.getElementById('drive-status').innerHTML = '<div class="alert alert-info">📤 Sincronizando...</div>';
 
-  const payload = JSON.stringify({ action: 'sync', payments: payments, services: services });
-
-  // Use fetch with no-cors to bypass CORS preflight
+  const payload = { action: 'sync', payments: payments, services: services };
   fetch(url, {
     method: 'POST',
-    mode: 'no-cors',
-    headers: { 'Content-Type': 'text/plain' },
-    body: payload
-  }).then(function() {
-    // With no-cors we can't read the response, but the request IS sent
-    document.getElementById('drive-status').innerHTML = '<div class="alert alert-success">✅ Datos enviados a Google Drive. Esperá 5 segundos y verificá la hoja.</div>';
-    // Auto-verify after 5 seconds by trying to load
-    setTimeout(function() {
-      verifyDriveSync(url);
-    }, 5000);
-  }).catch(function(e) {
-    document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ Error al enviar: ' + e.message + '</div>';
-  });
-}
-
-function verifyDriveSync(url) {
-  const cb = 'verify_' + Date.now();
-  window[cb] = function(data) {
-    delete window[cb];
-    if (script && script.parentNode) script.parentNode.removeChild(script);
-    if (data && data.payments && data.payments.length > 0) {
-      document.getElementById('drive-status').innerHTML = '<div class="alert alert-success">✅ Confirmado: los datos están en Google Drive (' + data.payments.length + ' pagos)</div>';
-    } else {
-      document.getElementById('drive-status').innerHTML = '<div class="alert alert-warning">⚠️ Los datos pueden estar procesándose. Recargá la página y verificá en Drive.</div>';
-    }
-  };
-  const script = document.createElement('script');
-  script.src = url + '?action=load&callback=' + cb;
-  script.onerror = function() {
-    delete window[cb];
-    if (script && script.parentNode) script.parentNode.removeChild(script);
-  };
-  setTimeout(function() {
-    if (window[cb]) {
-      delete window[cb];
-      if (script && script.parentNode) script.parentNode.removeChild(script);
-    }
-  }, 10000);
-  document.body.appendChild(script);
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        document.getElementById('drive-status').innerHTML = '<div class="alert alert-success">✅ Sincronizado con Google Drive</div>';
+      } else {
+        document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ Error: ' + (data.error || 'desconocido') + '</div>';
+      }
+    })
+    .catch(e => {
+      document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ Error de conexión: ' + e.message + '</div>';
+    });
 }
 
 function loadFromDrive() {
   const url = document.getElementById('drive-url').value.trim() || driveUrl;
   if (!url) { alert('Configurá la URL primero'); return; }
   driveUrl = url; localStorage.setItem('gp_driveUrl', driveUrl);
-  document.getElementById('drive-status').innerHTML = '<div class="alert alert-info">📥 Cargando desde Drive...</div>';
-
-  // JSONP approach - no CORS issues
-  const cb = 'drive_load_' + Date.now();
-  window[cb] = function(data) {
-    delete window[cb];
-    if (script && script.parentNode) script.parentNode.removeChild(script);
-    if (data.payments) { payments = data.payments; localStorage.setItem('gp_payments', JSON.stringify(payments)); }
-    if (data.services) { services = data.services; localStorage.setItem('gp_services', JSON.stringify(services)); }
-    renderHistory(); renderPending(); renderStats(); renderServicesConfig(); populateServiceSelect();
-    document.getElementById('drive-status').innerHTML = '<div class="alert alert-success">✅ Datos cargados desde Drive</div>';
-  };
-  const script = document.createElement('script');
-  script.src = url + '?action=load&callback=' + cb;
-  script.onerror = function() {
-    delete window[cb];
-    if (script && script.parentNode) script.parentNode.removeChild(script);
-    document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ Error al cargar desde Drive</div>';
-  };
-  setTimeout(function() {
-    if (window[cb]) {
-      delete window[cb];
-      if (script && script.parentNode) script.parentNode.removeChild(script);
-      document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ Timeout al cargar</div>';
-    }
-  }, 10000);
-  document.body.appendChild(script);
+  document.getElementById('drive-status').innerHTML = '<div class="alert alert-info">📥 Cargando...</div>';
+  fetch(url + '?action=load')
+    .then(res => res.json())
+    .then(data => {
+      if (data.payments) { payments = data.payments; localStorage.setItem('gp_payments', JSON.stringify(payments)); }
+      if (data.services) { services = data.services; localStorage.setItem('gp_services', JSON.stringify(services)); }
+      renderHistory(); renderPending(); renderStats(); renderServicesConfig(); populateServiceSelect();
+      document.getElementById('drive-status').innerHTML = '<div class="alert alert-success">✅ Datos cargados desde Drive</div>';
+    })
+    .catch(e => {
+      document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ Error: ' + e.message + '</div>';
+    });
 }
 
 // ============================================
