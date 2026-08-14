@@ -1139,42 +1139,52 @@ function syncToDriveManual() {
   const url = document.getElementById('drive-url').value.trim() || driveUrl;
   if (!url) { document.getElementById('drive-status').innerHTML = '<div class="alert alert-warning">⚠️ Configurá la URL del Web App primero</div>'; return; }
   driveUrl = url; localStorage.setItem('gp_driveUrl', driveUrl);
-  document.getElementById('drive-status').innerHTML = '<div class="alert alert-info">📤 Sincronizando (esto puede tardar unos segundos)...</div>';
+  document.getElementById('drive-status').innerHTML = '<div class="alert alert-info">📤 Enviando datos a Google Drive...</div>';
 
-  // Use a hidden form submission to avoid CORS on POST
-  const form = document.createElement('form');
-  form.method = 'POST';
-  form.action = url;
-  form.target = 'drive-sync-frame';
-  form.style.display = 'none';
+  const payload = JSON.stringify({ action: 'sync', payments: payments, services: services });
 
-  const input = document.createElement('input');
-  input.name = 'payload';
-  input.value = JSON.stringify({ action: 'sync', payments: payments, services: services });
-  form.appendChild(input);
+  // Use fetch with no-cors to bypass CORS preflight
+  fetch(url, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body: payload
+  }).then(function() {
+    // With no-cors we can't read the response, but the request IS sent
+    document.getElementById('drive-status').innerHTML = '<div class="alert alert-success">✅ Datos enviados a Google Drive. Esperá 5 segundos y verificá la hoja.</div>';
+    // Auto-verify after 5 seconds by trying to load
+    setTimeout(function() {
+      verifyDriveSync(url);
+    }, 5000);
+  }).catch(function(e) {
+    document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ Error al enviar: ' + e.message + '</div>';
+  });
+}
 
-  // Create hidden iframe to receive response
-  let iframe = document.getElementById('drive-sync-frame');
-  if (!iframe) {
-    iframe = document.createElement('iframe');
-    iframe.id = 'drive-sync-frame';
-    iframe.name = 'drive-sync-frame';
-    iframe.style.display = 'none';
-    document.body.appendChild(iframe);
-  }
-
-  // Listen for iframe load
-  iframe.onload = function() {
-    document.getElementById('drive-status').innerHTML = '<div class="alert alert-success">✅ Datos enviados a Google Drive. Verificá la hoja en tu Drive.</div>';
-    if (form.parentNode) form.parentNode.removeChild(form);
+function verifyDriveSync(url) {
+  const cb = 'verify_' + Date.now();
+  window[cb] = function(data) {
+    delete window[cb];
+    if (script && script.parentNode) script.parentNode.removeChild(script);
+    if (data && data.payments && data.payments.length > 0) {
+      document.getElementById('drive-status').innerHTML = '<div class="alert alert-success">✅ Confirmado: los datos están en Google Drive (' + data.payments.length + ' pagos)</div>';
+    } else {
+      document.getElementById('drive-status').innerHTML = '<div class="alert alert-warning">⚠️ Los datos pueden estar procesándose. Recargá la página y verificá en Drive.</div>';
+    }
   };
-  iframe.onerror = function() {
-    document.getElementById('drive-status').innerHTML = '<div class="alert alert-warning">⚠️ No se pudo confirmar la respuesta, pero los datos pueden haberse enviado.</div>';
-    if (form.parentNode) form.parentNode.removeChild(form);
+  const script = document.createElement('script');
+  script.src = url + '?action=load&callback=' + cb;
+  script.onerror = function() {
+    delete window[cb];
+    if (script && script.parentNode) script.parentNode.removeChild(script);
   };
-
-  document.body.appendChild(form);
-  form.submit();
+  setTimeout(function() {
+    if (window[cb]) {
+      delete window[cb];
+      if (script && script.parentNode) script.parentNode.removeChild(script);
+    }
+  }, 10000);
+  document.body.appendChild(script);
 }
 
 function loadFromDrive() {
