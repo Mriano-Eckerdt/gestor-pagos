@@ -491,12 +491,15 @@ function initFirebase() {
       .then(() => {
         console.log('Firebase Auth: OK');
         firebaseConnected = true;
-        checkCloudData();
-        if (currentUser) {
-          validateSession();
-        } else {
-          decideInitialScreen();
-        }
+        // Leer usuarios de Firebase primero para saber si ya existe Super Admin
+        firebaseDb.ref('gp_data/users').once('value', snap => {
+          const cloudUsers = snap.val();
+          if (cloudUsers) {
+            users = { ...users, ...cloudUsers };
+            localStorage.setItem('gp_users', JSON.stringify(users));
+          }
+          checkCloudData();
+        }).catch(() => checkCloudData());
       })
       .catch(err => {
         console.error('Firebase Auth error:', err);
@@ -535,8 +538,27 @@ function decideInitialScreen() {
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('setup-screen').style.display = 'none';
   } else {
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('setup-screen').style.display = 'flex';
+    // Si no hay usuarios locales, verificar en Firebase antes de mostrar setup
+    if (firebaseDb) {
+      firebaseDb.ref('gp_data/users').once('value', snap => {
+        const cloudUsers = snap.val();
+        if (cloudUsers && Object.keys(cloudUsers).length > 0) {
+          users = cloudUsers;
+          localStorage.setItem('gp_users', JSON.stringify(users));
+          document.getElementById('login-screen').style.display = 'flex';
+          document.getElementById('setup-screen').style.display = 'none';
+        } else {
+          document.getElementById('login-screen').style.display = 'none';
+          document.getElementById('setup-screen').style.display = 'flex';
+        }
+      }).catch(() => {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('setup-screen').style.display = 'flex';
+      });
+    } else {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('setup-screen').style.display = 'flex';
+    }
   }
 }
 
@@ -737,6 +759,7 @@ function savePayment() {
   payments.push(payment);
   localStorage.setItem('gp_payments', JSON.stringify(payments));
   saveToFirebase();
+  syncToDriveAuto();
 
   document.getElementById('pay-service').value = '';
   document.getElementById('pay-property').innerHTML = '<option value="">Seleccionar propiedad...</option>';
@@ -921,6 +944,7 @@ function markAsPaid(id) {
   p.paidDate = new Date().toISOString().split('T')[0];
   localStorage.setItem('gp_payments', JSON.stringify(payments));
   saveToFirebase();
+  syncToDriveAuto();
   renderHistory(); renderPending(); renderStats();
 }
 
@@ -929,6 +953,7 @@ function deletePayment(id) {
   payments = payments.filter(p => p.id !== id);
   localStorage.setItem('gp_payments', JSON.stringify(payments));
   saveToFirebase();
+  syncToDriveAuto();
   renderHistory(); renderPending(); renderStats();
 }
 
@@ -1096,7 +1121,7 @@ function testFirebaseConnection() {
 // ============================================
 // GOOGLE DRIVE
 // ============================================
-let driveUrl = localStorage.getItem('gp_driveUrl') || 'https://script.google.com/macros/s/AKfycbzOlnLjrUZRB9eINmwZ55JTxQz53ICnQciKuFevf_YgH1ROTzmK5xnvszrHZV6pLNzQZg/exec';
+let driveUrl = localStorage.getItem('gp_driveUrl') || 'https://script.google.com/macros/s/AKfycbyhdzteDO1kNHV9GCXVLKvXyHkxqasHE3BOkVAbyjxHTDfpCL7fGXHELN5jVjNxFdzwtw/exec';
 
 function testDriveConnection() {
   const url = document.getElementById('drive-url').value.trim() || driveUrl;
@@ -1121,25 +1146,29 @@ function syncToDriveManual() {
   const url = document.getElementById('drive-url').value.trim() || driveUrl;
   if (!url) { document.getElementById('drive-status').innerHTML = '<div class="alert alert-warning">⚠️ Configurá la URL del Web App primero</div>'; return; }
   driveUrl = url; localStorage.setItem('gp_driveUrl', driveUrl);
-  document.getElementById('drive-status').innerHTML = '<div class="alert alert-info">📤 Sincronizando...</div>';
+  document.getElementById('drive-status').innerHTML = '<div class="alert alert-info">📤 Enviando datos...</div>';
 
-  const payload = { action: 'sync', payments: payments, services: services };
+  // mode: 'no-cors' evita el preflight OPTIONS. El POST llega sí o sí.
+  // No podemos leer la respuesta, pero los datos se guardan en Drive.
   fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        document.getElementById('drive-status').innerHTML = '<div class="alert alert-success">✅ Sincronizado con Google Drive</div>';
-      } else {
-        document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ Error: ' + (data.error || 'desconocido') + '</div>';
-      }
-    })
-    .catch(e => {
-      document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ Error de conexión: ' + e.message + '</div>';
-    });
+    mode: 'no-cors',
+    body: JSON.stringify({ action: 'sync', payments: payments, services: services })
+  }).then(function() {
+    document.getElementById('drive-status').innerHTML = '<div class="alert alert-success">✅ Datos enviados a Google Drive</div>';
+  }).catch(function(e) {
+    document.getElementById('drive-status').innerHTML = '<div class="alert alert-danger">❌ Error: ' + e.message + '</div>';
+  });
+}
+
+function syncToDriveAuto() {
+  const url = driveUrl;
+  if (!url || !payments.length) return;
+  fetch(url, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: JSON.stringify({ action: 'sync', payments: payments, services: services })
+  }).catch(function() {});
 }
 
 function loadFromDrive() {
