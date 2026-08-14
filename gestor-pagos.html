@@ -209,7 +209,8 @@ footer { text-align: center; padding: 30px 16px; color: var(--text-tertiary); fo
       <button class="btn btn-primary" style="width:100%;padding:14px;font-size:16px;" onclick="doLogin()">🔓 Ingresar</button>
     </div>
     <div style="text-align:center;margin-top:20px;font-size:12px;color:var(--text-tertiary);">
-      Gestor de Pagos v1.0
+      <p>Gestor de Pagos v1.0</p>
+      <p style="margin-top:4px;font-size:11px;font-weight:600;">© 2026 Mariano Eckerdt. Todos los derechos reservados.</p>
     </div>
   </div>
 </div>
@@ -434,6 +435,7 @@ footer { text-align: center; padding: 30px 16px; color: var(--text-tertiary); fo
 <footer>
   <p>Gestor de Pagos v1.0</p>
   <p style="margin-top:4px;font-size:12px;color:var(--text-tertiary);">Uso familiar</p>
+  <p style="margin-top:8px;font-size:11px;color:var(--text-tertiary);font-weight:600;">© 2026 Mariano Eckerdt. Todos los derechos reservados.</p>
 </footer>
 
 </div>
@@ -1094,7 +1096,7 @@ function testFirebaseConnection() {
 // ============================================
 // GOOGLE DRIVE
 // ============================================
-let driveUrl = localStorage.getItem('gp_driveUrl') || '';
+let driveUrl = localStorage.getItem('gp_driveUrl') || 'https://script.google.com/macros/s/AKfycbyZlxxQpmK706LCyLEa8PUQ88z7Lh9_qXtjNqELhUZYczGW3D3LKWEAPVEp69R0j-Hj/exec';
 
 function testDriveConnection() {
   const url = document.getElementById('drive-url').value.trim() || driveUrl;
