@@ -842,7 +842,7 @@ function renderPending() {
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">' +
           '<button class="btn btn-success btn-sm" onclick="markAsPaid(\'" + p.id + "\')">💳 Pagar</button>' +
-          '<button class="btn btn-danger btn-sm" onclick="deletePayment(\'" + p.id + "\')">🗑️</button>' +
+          '<button class="btn btn-danger" style="padding:8px 14px;font-size:13px;" onclick="deletePayment(\'" + p.id + "\')">🗑️ Eliminar</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -881,7 +881,7 @@ function renderPaymentCard(p) {
       '</div>' +
       '<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">' +
         (!isPaid ? '<button class="btn btn-success btn-sm" onclick="markAsPaid(\'" + p.id + "\')">💳 Pagar</button>' : '') +
-        '<button class="btn btn-danger btn-sm" onclick="deletePayment(\'" + p.id + "\')">🗑️</button>' +
+        '<button class="btn btn-danger" style="padding:8px 14px;font-size:13px;" onclick="deletePayment(\'" + p.id + "\')">🗑️ Eliminar</button>' +
       '</div>' +
     '</div>' +
   '</div>';
@@ -949,12 +949,17 @@ function markAsPaid(id) {
 }
 
 function deletePayment(id) {
-  if (!confirm('¿Eliminar este registro?')) return;
-  payments = payments.filter(p => p.id !== id);
-  localStorage.setItem('gp_payments', JSON.stringify(payments));
-  saveToFirebase();
-  syncToDriveAuto();
-  renderHistory(); renderPending(); renderStats();
+  try {
+    if (!confirm('¿Eliminar este registro?')) return;
+    payments = payments.filter(p => p.id !== id);
+    localStorage.setItem('gp_payments', JSON.stringify(payments));
+    saveToFirebase();
+    syncToDriveAuto();
+    renderHistory(); renderPending(); renderStats();
+  } catch(e) {
+    console.error('Error al eliminar:', e);
+    alert('Error al eliminar: ' + e.message);
+  }
 }
 
 function getServiceName(key) {
