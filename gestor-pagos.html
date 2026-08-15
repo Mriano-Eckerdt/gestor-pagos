@@ -272,7 +272,7 @@ footer { text-align: center; padding: 30px 16px; color: var(--text-tertiary); fo
     </select>
 
     <label style="font-weight:700;font-size:13px;color:var(--text-secondary);margin-bottom:6px;display:block;">N° Suministro / ID / Cuenta</label>
-    <input type="text" class="input" id="pay-account" placeholder="Ej: 123456789" />
+    <input type="text" class="input" id="pay-account" placeholder="Ej: 123456789" oninput="onAccountInput()" />
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       <div>
@@ -779,6 +779,50 @@ function savePayment() {
   setTimeout(() => msgEl.innerHTML = '', 3000);
 
   renderHistory(); renderPending(); renderStats();
+}
+
+// ============================================
+// AUTOCOMPLETAR POR ID DE SUMINISTRO
+// ============================================
+function onAccountInput() {
+  const account = document.getElementById('pay-account').value.trim();
+  if (!account || account.length < 3) return;
+
+  // Buscar el último pago con este account
+  const history = payments.filter(p => p.account === account).sort((a, b) => b.createdAt - a.createdAt);
+  if (!history.length) return;
+
+  const last = history[0];
+
+  // Autocompletar servicio
+  const svcSel = document.getElementById('pay-service');
+  if (last.service && svcSel.value !== last.service) {
+    svcSel.value = last.service;
+    updatePropertyOptions();
+  }
+
+  // Autocompletar propiedad
+  const propSel = document.getElementById('pay-property');
+  if (last.property && propSel.value !== last.property) {
+    propSel.value = last.property;
+  }
+
+  // Sugerir monto anterior (solo si el campo está vacío)
+  const amountInput = document.getElementById('pay-amount');
+  if (!amountInput.value && last.amount) {
+    amountInput.value = last.amount;
+  }
+
+  // Mostrar sugerencia del método de pago anterior (sin forzar)
+  const msgEl = document.getElementById('save-msg');
+  let methodHint = '';
+  if (last.method) {
+    const methodLabels = { mercadopago: '📱 Mercado Pago', efectivo: '💵 Efectivo', transferencia: '🏦 Transferencia' };
+    const bankLabel = last.bank === 'nacion' ? ' (Nación)' : last.bank ? ' (Otro)' : '';
+    methodHint = ' • Último método: ' + (methodLabels[last.method] || last.method) + bankLabel;
+  }
+  msgEl.innerHTML = '<span style="color:var(--accent);">📋 Datos cargados desde ID ' + account + methodHint + '</span>';
+  setTimeout(() => { if (msgEl.textContent.includes('Datos cargados')) msgEl.innerHTML = ''; }, 5000);
 }
 
 // ============================================
