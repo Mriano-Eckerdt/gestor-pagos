@@ -649,6 +649,7 @@ function validateSession() {
 let selectedMethod = '';
 let photoInvoice = '';
 let photoReceipt = '';
+let editingPaymentId = null;
 
 function populateServiceSelect() {
   const sel = document.getElementById('pay-service');
@@ -739,24 +740,51 @@ function savePayment() {
   if (!method) { msgEl.innerHTML = '<span style="color:var(--warning);">⚠️ Seleccioná un método de pago</span>'; return; }
   if (method === 'transferencia' && !bank) { msgEl.innerHTML = '<span style="color:var(--warning);">⚠️ Seleccioná el banco</span>'; return; }
 
-  const payment = {
-    id: Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-    service: svcKey,
-    property,
-    account,
-    dueDate,
-    paidDate: paidDate || null,
-    amount,
-    method,
-    bank: method === 'transferencia' ? bank : '',
-    photoInvoice,
-    photoReceipt,
-    notes,
-    createdAt: Date.now(),
-    createdBy: currentUser.username
-  };
-
-  payments.push(payment);
+  if (editingPaymentId) {
+    const idx = payments.findIndex(p => p.id === editingPaymentId);
+    if (idx !== -1) {
+      payments[idx] = {
+        ...payments[idx],
+        service: svcKey,
+        property,
+        account,
+        dueDate,
+        paidDate: paidDate || null,
+        amount,
+        method,
+        bank: method === 'transferencia' ? bank : '',
+        photoInvoice,
+        photoReceipt,
+        notes,
+        updatedAt: Date.now(),
+        updatedBy: currentUser.username
+      };
+    }
+    editingPaymentId = null;
+    document.querySelector('#tab-new .card-title').textContent = '➕ Registrar Nuevo Pago';
+    const saveBtn = document.querySelector('#tab-new .btn-success');
+    saveBtn.textContent = '✅ Guardar Registro';
+    const cancelBtn = document.getElementById('cancel-edit-btn');
+    if (cancelBtn) cancelBtn.remove();
+  } else {
+    const payment = {
+      id: Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+      service: svcKey,
+      property,
+      account,
+      dueDate,
+      paidDate: paidDate || null,
+      amount,
+      method,
+      bank: method === 'transferencia' ? bank : '',
+      photoInvoice,
+      photoReceipt,
+      notes,
+      createdAt: Date.now(),
+      createdBy: currentUser.username
+    };
+    payments.push(payment);
+  }
   localStorage.setItem('gp_payments', JSON.stringify(payments));
   saveToFirebase();
   syncToDriveAuto();
@@ -885,8 +913,8 @@ function renderPending() {
           (p.account ? '<div class="payment-meta">ID: ' + p.account + '</div>' : '') +
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">' +
-          '<button class="btn btn-success btn-sm" onclick="markAsPaid(\' + p.id + "\')">💳 Pagar</button>' +
-          '<button type="button" class="btn btn-danger" style="padding:8px 14px;font-size:13px;" onclick="deletePayment(\' + p.id + "\')">🗑️ Eliminar</button>' +
+          '<button class="btn btn-success btn-sm" onclick="markAsPaid(\'' + p.id + '\')">💳 Pagar</button>' +
+          '<button type="button" class="btn btn-danger" style="padding:8px 14px;font-size:13px;" onclick="deletePayment(\'' + p.id + '\')">🗑️ Eliminar</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -924,8 +952,8 @@ function renderPaymentCard(p) {
         photosHtml +
       '</div>' +
       '<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">' +
-        (!isPaid ? '<button class="btn btn-success btn-sm" onclick="markAsPaid(\' + p.id + "\')">💳 Pagar</button>' : '') +
-        '<button type="button" class="btn btn-danger" style="padding:8px 14px;font-size:13px;" onclick="deletePayment(\' + p.id + "\')">🗑️ Eliminar</button>' +
+        (!isPaid ? '<button class="btn btn-success btn-sm" onclick="markAsPaid(\'' + p.id + '\')">💳 Pagar</button>' : '') +
+        '<button type="button" class="btn btn-danger" style="padding:8px 14px;font-size:13px;" onclick="deletePayment(\'' + p.id + '\')">🗑️ Eliminar</button>' + '<button type="button" class="btn btn-secondary" style="padding:8px 14px;font-size:13px;" onclick="editPayment(\'' + p.id + '\')">✏️ Editar</button>' +
       '</div>' +
     '</div>' +
   '</div>';
@@ -980,6 +1008,78 @@ function renderStats() {
   }
   propHtml += '</div>';
   document.getElementById('stats-by-property').innerHTML = propHtml;
+}
+
+function editPayment(id) {
+  const p = payments.find(x => x.id === id);
+  if (!p) return;
+
+  editingPaymentId = id;
+
+  // Cargar datos en el formulario
+  document.getElementById('pay-service').value = p.service;
+  updatePropertyOptions();
+  document.getElementById('pay-property').value = p.property;
+  document.getElementById('pay-account').value = p.account || '';
+  document.getElementById('pay-due').value = p.dueDate || '';
+  document.getElementById('pay-paid').value = p.paidDate || '';
+  document.getElementById('pay-amount').value = p.amount || '';
+  document.getElementById('pay-notes').value = p.notes || '';
+
+  if (p.method) {
+    setMethod(p.method);
+    if (p.method === 'transferencia' && p.bank) {
+      document.getElementById('pay-bank').value = p.bank;
+    }
+  }
+
+  photoInvoice = p.photoInvoice || '';
+  photoReceipt = p.photoReceipt || '';
+  showPhotoPreview();
+
+  // Cambiar UI
+  document.querySelector('#tab-new .card-title').textContent = '✏️ Editar Pago';
+  const saveBtn = document.querySelector('#tab-new .btn-success');
+  saveBtn.textContent = '💾 Guardar Cambios';
+  saveBtn.onclick = savePayment;
+
+  // Agregar botón cancelar si no existe
+  if (!document.getElementById('cancel-edit-btn')) {
+    const cancelBtn = document.createElement('button');
+    cancelBtn.id = 'cancel-edit-btn';
+    cancelBtn.className = 'btn btn-secondary';
+    cancelBtn.style.cssText = 'width:100%;padding:14px;font-size:16px;margin-top:10px;';
+    cancelBtn.textContent = '❌ Cancelar Edición';
+    cancelBtn.onclick = cancelEdit;
+    saveBtn.parentNode.insertBefore(cancelBtn, saveBtn.nextSibling);
+  }
+
+  showTab('new');
+}
+
+function cancelEdit() {
+  editingPaymentId = null;
+  document.getElementById('pay-service').value = '';
+  document.getElementById('pay-property').innerHTML = '<option value="">Seleccionar propiedad...</option>';
+  document.getElementById('pay-account').value = '';
+  document.getElementById('pay-due').value = '';
+  document.getElementById('pay-paid').value = '';
+  document.getElementById('pay-amount').value = '';
+  document.getElementById('pay-bank').value = '';
+  document.getElementById('pay-notes').value = '';
+  document.getElementById('bank-section').style.display = 'none';
+  document.getElementById('photo-preview-area').innerHTML = '';
+  document.getElementById('photo-preview-area').style.display = 'none';
+  photoInvoice = ''; photoReceipt = ''; selectedMethod = '';
+  document.querySelectorAll('#method-buttons .btn').forEach(b => { b.style.background = ''; b.style.color = ''; b.style.borderColor = ''; });
+
+  document.querySelector('#tab-new .card-title').textContent = '➕ Registrar Nuevo Pago';
+  const saveBtn = document.querySelector('#tab-new .btn-success');
+  saveBtn.textContent = '✅ Guardar Registro';
+  saveBtn.onclick = savePayment;
+
+  const cancelBtn = document.getElementById('cancel-edit-btn');
+  if (cancelBtn) cancelBtn.remove();
 }
 
 function markAsPaid(id) {
@@ -1070,7 +1170,7 @@ function renderUsersList() {
         '<div style="font-weight:800;font-size:15px;display:flex;align-items:center;gap:8px;">' + u.username + ' ' + roleBadge + '</div>' +
       '</div>' +
       '<div style="display:flex;gap:6px;">' +
-        (currentUser?.role === 'superadmin' && u.role !== 'superadmin' ? '<button class="btn btn-danger btn-sm" onclick="deleteUser(\' + u.username + "\')">🗑️ Eliminar</button>' : '') +
+        (currentUser?.role === 'superadmin' && u.role !== 'superadmin' ? '<button class="btn btn-danger btn-sm" onclick="deleteUser(\'' + u.username + '\')">🗑️ Eliminar</button>' : '') +
       '</div>' +
     '</div>';
   }).join('');
