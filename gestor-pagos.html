@@ -491,7 +491,6 @@ function initFirebase() {
       .then(() => {
         console.log('Firebase Auth: OK');
         firebaseConnected = true;
-        // Leer usuarios de Firebase primero para saber si ya existe Super Admin
         firebaseDb.ref('gp_data/users').once('value', snap => {
           const cloudUsers = snap.val();
           if (cloudUsers) {
@@ -538,7 +537,6 @@ function decideInitialScreen() {
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('setup-screen').style.display = 'none';
   } else {
-    // Si no hay usuarios locales, verificar en Firebase antes de mostrar setup
     if (firebaseDb) {
       firebaseDb.ref('gp_data/users').once('value', snap => {
         const cloudUsers = snap.val();
@@ -842,7 +840,7 @@ function renderPending() {
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">' +
           '<button class="btn btn-success btn-sm" onclick='markAsPaid(' + JSON.stringify(p.id) + ')'>💳 Pagar</button>' +
-          '<button type="button" class="btn btn-danger" style="padding:8px 14px;font-size:13px;" onclick='deletePayment(' + JSON.stringify(p.id) + ')'>🗑️ Eliminar</button>' +
+          '<button class="btn btn-danger btn-sm" onclick='deletePayment(' + JSON.stringify(p.id) + ')'>🗑️</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -881,7 +879,7 @@ function renderPaymentCard(p) {
       '</div>' +
       '<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">' +
         (!isPaid ? '<button class="btn btn-success btn-sm" onclick='markAsPaid(' + JSON.stringify(p.id) + ')'>💳 Pagar</button>' : '') +
-        '<button type="button" class="btn btn-danger" style="padding:8px 14px;font-size:13px;" onclick='deletePayment(' + JSON.stringify(p.id) + ')'>🗑️ Eliminar</button>' +
+        '<button class="btn btn-danger btn-sm" onclick='deletePayment(' + JSON.stringify(p.id) + ')'>🗑️</button>' +
       '</div>' +
     '</div>' +
   '</div>';
@@ -949,18 +947,12 @@ function markAsPaid(id) {
 }
 
 function deletePayment(id) {
-  console.log('Eliminando pago:', id);
-  try {
-    if (!confirm('¿Eliminar este registro?')) return;
-    payments = payments.filter(p => p.id !== id);
-    localStorage.setItem('gp_payments', JSON.stringify(payments));
-    saveToFirebase();
-    syncToDriveAuto();
-    renderHistory(); renderPending(); renderStats();
-  } catch(e) {
-    console.error('Error al eliminar:', e);
-    alert('Error al eliminar: ' + e.message);
-  }
+  if (!confirm('¿Eliminar este registro?')) return;
+  payments = payments.filter(p => p.id !== id);
+  localStorage.setItem('gp_payments', JSON.stringify(payments));
+  saveToFirebase();
+  syncToDriveAuto();
+  renderHistory(); renderPending(); renderStats();
 }
 
 function getServiceName(key) {
@@ -1153,9 +1145,6 @@ function syncToDriveManual() {
   if (!url) { document.getElementById('drive-status').innerHTML = '<div class="alert alert-warning">⚠️ Configurá la URL del Web App primero</div>'; return; }
   driveUrl = url; localStorage.setItem('gp_driveUrl', driveUrl);
   document.getElementById('drive-status').innerHTML = '<div class="alert alert-info">📤 Enviando datos...</div>';
-
-  // mode: 'no-cors' evita el preflight OPTIONS. El POST llega sí o sí.
-  // No podemos leer la respuesta, pero los datos se guardan en Drive.
   fetch(url, {
     method: 'POST',
     mode: 'no-cors',
