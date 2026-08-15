@@ -491,6 +491,7 @@ function initFirebase() {
       .then(() => {
         console.log('Firebase Auth: OK');
         firebaseConnected = true;
+        // Leer usuarios de Firebase primero para saber si ya existe Super Admin
         firebaseDb.ref('gp_data/users').once('value', snap => {
           const cloudUsers = snap.val();
           if (cloudUsers) {
@@ -537,6 +538,7 @@ function decideInitialScreen() {
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('setup-screen').style.display = 'none';
   } else {
+    // Si no hay usuarios locales, verificar en Firebase antes de mostrar setup
     if (firebaseDb) {
       firebaseDb.ref('gp_data/users').once('value', snap => {
         const cloudUsers = snap.val();
@@ -839,8 +841,8 @@ function renderPending() {
           (p.account ? '<div class="payment-meta">ID: ' + p.account + '</div>' : '') +
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">' +
-          '<button class="btn btn-success btn-sm" onclick=\'markAsPaid(' + JSON.stringify(p.id) + ')\'>💳 Pagar</button>' +
-          '<button class="btn btn-danger btn-sm" onclick=\'deletePayment(' + JSON.stringify(p.id) + ')\'>🗑️</button>' +
+          '<button class="btn btn-success btn-sm" onclick="markAsPaid(\' + p.id + "\')">💳 Pagar</button>' +
+          '<button type="button" class="btn btn-danger" style="padding:8px 14px;font-size:13px;" onclick="deletePayment(\' + p.id + "\')">🗑️ Eliminar</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -878,8 +880,8 @@ function renderPaymentCard(p) {
         photosHtml +
       '</div>' +
       '<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">' +
-        (!isPaid ? '<button class="btn btn-success btn-sm" onclick=\'markAsPaid(' + JSON.stringify(p.id) + ')\'>💳 Pagar</button>' : '') +
-        '<button class="btn btn-danger btn-sm" onclick=\'deletePayment(' + JSON.stringify(p.id) + ')\'>🗑️</button>' +
+        (!isPaid ? '<button class="btn btn-success btn-sm" onclick="markAsPaid(\' + p.id + "\')">💳 Pagar</button>' : '') +
+        '<button type="button" class="btn btn-danger" style="padding:8px 14px;font-size:13px;" onclick="deletePayment(\' + p.id + "\')">🗑️ Eliminar</button>' +
       '</div>' +
     '</div>' +
   '</div>';
@@ -947,12 +949,18 @@ function markAsPaid(id) {
 }
 
 function deletePayment(id) {
-  if (!confirm('¿Eliminar este registro?')) return;
-  payments = payments.filter(p => p.id !== id);
-  localStorage.setItem('gp_payments', JSON.stringify(payments));
-  saveToFirebase();
-  syncToDriveAuto();
-  renderHistory(); renderPending(); renderStats();
+  console.log('Eliminando pago:', id);
+  try {
+    if (!confirm('¿Eliminar este registro?')) return;
+    payments = payments.filter(p => p.id !== id);
+    localStorage.setItem('gp_payments', JSON.stringify(payments));
+    saveToFirebase();
+    syncToDriveAuto();
+    renderHistory(); renderPending(); renderStats();
+  } catch(e) {
+    console.error('Error al eliminar:', e);
+    alert('Error al eliminar: ' + e.message);
+  }
 }
 
 function getServiceName(key) {
@@ -1018,7 +1026,7 @@ function renderUsersList() {
         '<div style="font-weight:800;font-size:15px;display:flex;align-items:center;gap:8px;">' + u.username + ' ' + roleBadge + '</div>' +
       '</div>' +
       '<div style="display:flex;gap:6px;">' +
-        (currentUser?.role === 'superadmin' && u.role !== 'superadmin' ? '<button class="btn btn-danger btn-sm" onclick=\'deleteUser(' + JSON.stringify(u.username) + ')\'>🗑️ Eliminar</button>' : '') +
+        (currentUser?.role === 'superadmin' && u.role !== 'superadmin' ? '<button class="btn btn-danger btn-sm" onclick="deleteUser(\' + u.username + "\')">🗑️ Eliminar</button>' : '') +
       '</div>' +
     '</div>';
   }).join('');
@@ -1145,6 +1153,9 @@ function syncToDriveManual() {
   if (!url) { document.getElementById('drive-status').innerHTML = '<div class="alert alert-warning">⚠️ Configurá la URL del Web App primero</div>'; return; }
   driveUrl = url; localStorage.setItem('gp_driveUrl', driveUrl);
   document.getElementById('drive-status').innerHTML = '<div class="alert alert-info">📤 Enviando datos...</div>';
+
+  // mode: 'no-cors' evita el preflight OPTIONS. El POST llega sí o sí.
+  // No podemos leer la respuesta, pero los datos se guardan en Drive.
   fetch(url, {
     method: 'POST',
     mode: 'no-cors',
