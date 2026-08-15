@@ -841,8 +841,8 @@ function renderPending() {
           (p.account ? '<div class="payment-meta">ID: ' + p.account + '</div>' : '') +
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">' +
-          '<button class="btn btn-success btn-sm" onclick="markAsPaid(\'" + p.id + "\')">💳 Pagar</button>' +
-          '<button class="btn btn-danger" style="padding:8px 14px;font-size:13px;" onclick="deletePayment(\'" + p.id + "\')">🗑️ Eliminar</button>' +
+          '<button class="btn btn-success btn-sm" onclick='markAsPaid(' + JSON.stringify(p.id) + ')'>💳 Pagar</button>' +
+          '<button type="button" class="btn btn-danger" style="padding:8px 14px;font-size:13px;" onclick='deletePayment(' + JSON.stringify(p.id) + ')'>🗑️ Eliminar</button>' +
         '</div>' +
       '</div>' +
     '</div>';
@@ -880,8 +880,8 @@ function renderPaymentCard(p) {
         photosHtml +
       '</div>' +
       '<div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">' +
-        (!isPaid ? '<button class="btn btn-success btn-sm" onclick="markAsPaid(\'" + p.id + "\')">💳 Pagar</button>' : '') +
-        '<button class="btn btn-danger" style="padding:8px 14px;font-size:13px;" onclick="deletePayment(\'" + p.id + "\')">🗑️ Eliminar</button>' +
+        (!isPaid ? '<button class="btn btn-success btn-sm" onclick='markAsPaid(' + JSON.stringify(p.id) + ')'>💳 Pagar</button>' : '') +
+        '<button type="button" class="btn btn-danger" style="padding:8px 14px;font-size:13px;" onclick='deletePayment(' + JSON.stringify(p.id) + ')'>🗑️ Eliminar</button>' +
       '</div>' +
     '</div>' +
   '</div>';
@@ -949,6 +949,7 @@ function markAsPaid(id) {
 }
 
 function deletePayment(id) {
+  console.log('Eliminando pago:', id);
   try {
     if (!confirm('¿Eliminar este registro?')) return;
     payments = payments.filter(p => p.id !== id);
@@ -1025,7 +1026,7 @@ function renderUsersList() {
         '<div style="font-weight:800;font-size:15px;display:flex;align-items:center;gap:8px;">' + u.username + ' ' + roleBadge + '</div>' +
       '</div>' +
       '<div style="display:flex;gap:6px;">' +
-        (currentUser?.role === 'superadmin' && u.role !== 'superadmin' ? '<button class="btn btn-danger btn-sm" onclick="deleteUser(\'" + u.username + "\')">🗑️ Eliminar</button>' : '') +
+        (currentUser?.role === 'superadmin' && u.role !== 'superadmin' ? '<button class="btn btn-danger btn-sm" onclick='deleteUser(' + JSON.stringify(u.username) + ')'>🗑️ Eliminar</button>' : '') +
       '</div>' +
     '</div>';
   }).join('');
